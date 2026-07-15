@@ -8,12 +8,15 @@
 #include "RE/A/ActorState.h"
 #include "RE/B/bhkCharacterController.h"
 #include "RE/B/bhkWorld.h"
+#include "RE/D/DialogueMenu.h"
 #include "RE/H/hkpCharacterState.h"
+#include "RE/M/MenuTopicManager.h"
 #include "RE/P/PlayerCharacter.h"
 #include "RE/P/ProcessLists.h"
 #include "RE/T/TESFaction.h"
 #include "RE/T/TESForm.h"
 #include "RE/T/TESObjectCELL.h"
+#include "RE/U/UI.h"
 
 #include <spdlog/spdlog.h>
 
@@ -34,7 +37,9 @@ namespace
     }
 
     // How close a follower must be to a recorded player parkour point to replay it.
-    constexpr float kReplayRadius = 120.0f;
+    // Keep this tight: triggering from far away detects the wrong ledge and the
+    // anim-start alignment visibly drags the follower.
+    constexpr float kReplayRadius = 80.0f;
     constexpr float kReplayZTolerance = 100.0f;
     constexpr float kReplayMinPlayerAbove = 60.0f;
     constexpr double kReplayEventLifetime = 120.0;  // seconds
@@ -162,6 +167,22 @@ bool PathingManager::PassesDynamicFilter(RE::Actor* a_actor) const
         return false;
     }
 
+    // In dialogue with the player: the dialogue system holds the NPC in place
+    // while their movement graph keeps "walking" — a classic false-stuck that
+    // made conversation partners teleport around mid-sentence.
+    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen(RE::DialogueMenu::MENU_NAME)) {
+        if (auto* topicManager = RE::MenuTopicManager::GetSingleton()) {
+            auto speaker = topicManager->speaker.get();
+            if (speaker && speaker.get() == a_actor) {
+                return false;
+            }
+            auto lastSpeaker = topicManager->lastSpeaker.get();
+            if (lastSpeaker && lastSpeaker.get() == a_actor) {
+                return false;
+            }
+        }
+    }
+
     return true;
 }
 
@@ -268,8 +289,9 @@ bool PathingManager::TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry)
             continue;
         }
 
-        // Face the direction the player faced and attempt the same move.
-        a_actor->data.angle.z = ev.yaw;
+        // Attempt the same move the player made. TryParkour only touches the
+        // follower's facing if a valid ledge is actually found — failed probes
+        // must never fight the AI's own rotation (caused visible twitching).
         const RE::NiPoint3 fwd = YawToForward(ev.yaw);
         if (TryParkour(a_actor, &fwd)) {
             ev.consumed.insert(fid);
@@ -431,6 +453,17 @@ bool PathingManager::TryParkour(RE::Actor* a_actor, const RE::NiPoint3* a_fwdOve
         return false;  // no wall-climbing inside houses
     }
 
+    // If the anim start position is far away, the alignment lerp visibly
+    // drags the actor across the ground. Wait until they're closer.
+    if ((det.startPos - a_actor->GetPosition()).Length() > 90.0f) {
+        return false;
+    }
+
+    // Only turn the actor once the move is definitely happening.
+    if (a_fwdOverride) {
+        a_actor->data.angle.z = std::atan2(a_fwdOverride->x, a_fwdOverride->y);
+    }
+
     if (!NpcParkour::Trigger(a_actor, det)) {
         return false;
     }
@@ -456,6 +489,20 @@ bool PathingManager::TryTeleportBypass(RE::Actor* a_actor)
     auto* settings = Settings::GetSingleton();
     const RE::NiPoint3 pos = a_actor->GetPosition();
     const float yaw = a_actor->GetAngleZ();
+
+    // Only teleport an NPC that is genuinely wall-stuck: solid geometry ahead
+    // at knee or chest height. NPCs held in place by AI or scripts while their
+    // graph keeps "walking" (dialogue, scenes, holds) stand in open space and
+    // must never be zapped.
+    {
+        const RE::NiPoint3 fwd(std::sin(yaw), std::cos(yaw), 0.0f);
+        const bool blockedAhead =
+            Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, 70.0f), fwd, 60.0f).didHit ||
+            Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, 20.0f), fwd, 60.0f).didHit;
+        if (!blockedAhead) {
+            return false;
+        }
+    }
 
     // Sideways-biased candidate directions, degrees relative to facing.
     constexpr float candidates[] = { 50.0f, -50.0f, 90.0f, -90.0f, 130.0f, -130.0f };
@@ -556,6 +603,13 @@ void PathingManager::UpdateParkourJobs(float a_delta)
                     break;
                 }
                 if (!ongoing || now - it->phaseStart > 8.0) {
+                    NpcParkour::OnParkourEnd(actor, true);
+                    remove = true;
+                    break;
+                }
+                // The vanilla follow package can catch-up-teleport the actor
+                // mid-animation; never drag them back across the map.
+                if ((it->startPos - actor->GetPosition()).Length() > 400.0f) {
                     NpcParkour::OnParkourEnd(actor, true);
                     remove = true;
                     break;

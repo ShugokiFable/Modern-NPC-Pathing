@@ -44,32 +44,3 @@ Notable defaults: followers **included**, combat **included**, indoor parkour **
 ## Logs
 
 `Documents/My Games/Skyrim Special Edition/SKSE/NPCPathingNG.log` (set Debug Logging ON to see every event)
-
-## License
-
-**GNU General Public License v3.0 (GPLv3)** — see [LICENSE](LICENSE) and [COPYING](COPYING).
-
-Copyright (C) 2026 Shugoki ([ShugokiFable](https://github.com/ShugokiFable)).
-
-This repository is the **corresponding source** for the SKSE plugin binary distributed on Nexus Mods. You may redistribute and/or modify this program under the terms of the GPLv3.
-
-### Building from source
-
-Requirements: Visual Studio 2022+ (C++), CMake 3.21+, CommonLibSSE-NG built/installed locally.
-
-`	ext
-git clone --recurse-submodules https://github.com/ShugokiFable/Modern-NPC-Pathing.git
-cd Modern-NPC-Pathing
-# Place or clone CommonLibSSE-NG into extern/CommonLibSSE and build/install it
-# so that CMake can find CommonLibSSE CONFIG (see CMakeLists.txt PREFIX_PATH).
-cmake --preset windows-msvc
-cmake --build build --config Release
-`
-
-The Release DLL is written to package/Data/SKSE/Plugins/NPCPathingNG.dll.
-
-### Credits / frameworks
-
-- [CommonLibSSE-NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) (MIT)
-- [SKSE64](https://skse.silverlock.org)
-- Optional runtime: SkyParkour V3, EVG Animated Traversal, SkyUI, MCM Helper (see Requirements above)
