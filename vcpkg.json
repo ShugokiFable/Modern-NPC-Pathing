@@ -1,0 +1,11 @@
+{
+  "name": "npcpathingng",
+  "version": "1.0.0",
+  "description": "NPC Pathing NG — runtime navmesh failsafe for Skyrim SE/AE",
+  "dependencies": [
+    {
+      "name": "commonlibsse-ng",
+      "path": "extern/CommonLibSSE"
+    }
+  ]
+}

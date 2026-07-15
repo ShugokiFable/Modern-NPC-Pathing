@@ -1,0 +1,50 @@
+{
+    "modName": "NPCPathingNG",
+    "displayName": "NPC Pathing NG",
+    "minMcmVersion": 9,
+    "pages": [
+        {
+            "pageDisplayName": "General",
+            "cursorFillMode": "topToBottom",
+            "content": [
+                {"text": "NPC Pathing NG", "type": "header"},
+                {"id": "bEnabled", "text": "Enable NPC Pathing NG", "help": "Master toggle. Applies instantly.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|800"}},
+                {"text": "Stuck Detection", "type": "header"},
+                {"id": "fCheckInterval", "text": "Check Interval (s)", "help": "Seconds between position samples per NPC. Lower = faster reaction, slightly more CPU.", "type": "slider", "valueOptions": {"min": 0.1, "max": 1.0, "step": 0.05, "formatString": "{2}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|801"}},
+                {"id": "iStuckThreshold", "text": "Stuck Threshold", "help": "Consecutive stuck samples before acting. Interval x Threshold = reaction time (default ~1s). Followers react twice as fast.", "type": "slider", "valueOptions": {"min": 1, "max": 10, "step": 1, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|802"}},
+                {"id": "fStuckDistance", "text": "Stuck Distance", "help": "An NPC trying to move but covering less than this many units per sample counts as stuck.", "type": "slider", "valueOptions": {"min": 1, "max": 10, "step": 0.5, "formatString": "{1}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|803"}},
+                {"id": "fCooldown", "text": "Cooldown (s)", "help": "Seconds before the same NPC can be unstuck again. Followers use half of this.", "type": "slider", "valueOptions": {"min": 0.5, "max": 10, "step": 0.5, "formatString": "{1}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|804"}},
+                {"id": "iActorsPerFrame", "text": "NPCs Scanned Per Frame", "help": "Round-robin slice size. 10 covers a busy city within a few frames.", "type": "slider", "valueOptions": {"min": 1, "max": 50, "step": 1, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|805"}},
+                {"text": "Debug", "type": "header"},
+                {"id": "bDebugLogging", "text": "Debug Logging", "help": "Log every parkour/teleport event to NPCPathingNG.log.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80F"}}
+            ]
+        },
+        {
+            "pageDisplayName": "Parkour",
+            "cursorFillMode": "topToBottom",
+            "content": [
+                {"text": "SkyParkour Integration", "type": "header"},
+                {"id": "bEnableParkour", "text": "NPC Parkour", "help": "Stuck NPCs vault/climb via SkyParkour animations. Needs SkyParkour V3 + Nemesis/Pandora patch.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|806"}},
+                {"id": "iIndoorMode", "text": "Indoor Parkour", "help": "What NPCs may do inside interior cells. Default: nothing (teleport fallback still works).", "type": "enum", "valueOptions": {"options": ["Disabled", "Steps & Vaults", "Everything"], "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|807"}},
+                {"id": "fMaxClimbHeight", "text": "Max Climb Height", "help": "Tallest ledge NPCs will climb (game units). 250 = SkyParkour max — city walls and rocky mountainsides included.", "type": "slider", "valueOptions": {"min": 60, "max": 250, "step": 10, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|808"}},
+                {"text": "EVG Animated Traversal", "type": "header"},
+                {"id": "bEVGTraversal", "text": "NPCs Use EVG Markers", "help": "Stuck NPCs and followers use EVG Animated Traversal points (ladders, squeezes, ledges, vaults, drops) with full animations instead of teleporting. Needs EVG Animated Traversal installed.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|811"}},
+                {"text": "Teleport Fallback", "type": "header"},
+                {"id": "bTeleportFallback", "text": "Teleport Bypass", "help": "When parkour can't help (no patch, no ledge, indoors), sidestep-teleport the NPC around the obstacle. Fully collision-validated.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|809"}},
+                {"id": "fSnapDistance", "text": "Bypass Distance", "help": "How far sideways the bypass teleport goes.", "type": "slider", "valueOptions": {"min": 40, "max": 300, "step": 10, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80A"}}
+            ]
+        },
+        {
+            "pageDisplayName": "Followers & Combat",
+            "cursorFillMode": "topToBottom",
+            "content": [
+                {"text": "Followers", "type": "header"},
+                {"id": "bFollowerReplay", "text": "Followers Retrace Your Parkour", "help": "When you climb or vault with SkyParkour, followers reaching that spot perform the same move to keep up. Works with Nether's Follower Framework and any mod that flags followers as teammates.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80E"}},
+                {"id": "bExcludeFollowers", "text": "Exclude Followers", "help": "Turn ON to leave followers completely untouched (also disables replay).", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80C"}},
+                {"text": "Combat", "type": "header"},
+                {"id": "bExcludeInCombat", "text": "Exclude NPCs In Combat", "help": "OFF by default so guards and enemies chasing you can climb after you. Turn ON if combat parkour causes oddities in your setup.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80B"}},
+                {"id": "bExcludeMounted", "text": "Exclude Mounted NPCs", "help": "Riders (and their horses) are left alone. Recommended ON.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80D"}}
+            ]
+        }
+    ]
+}
