@@ -32,12 +32,16 @@ public:
     // [Parkour]
     bool  enableParkour = true;
     int   parkourIndoorMode = 0;   // 0 = no parkour indoors (default), 1 = steps+vault, 2 = everything
-    float maxClimbHeight = 250.0f; // climb detection cap (250 = SkyParkour max — mountains welcome)
+    float maxClimbHeight = 130.0f; // climb detection cap. 130 = up to low/chest ledges (steps,
+                                   // vaults, low ledges) — NPCs don't scale walls/houses/mountains.
+                                   // Raise toward 250 (SkyParkour's own max) for full mountain climbs.
     bool  enableEvgTraversal = true;  // NPCs use EVG Animated Traversal markers
 
     // [Avoidance]
     bool  enableTeleportFallback = true;
     float snapDistance = 100.0f;
+    int   teleportEscalation = 3;  // consecutive stuck triggers with no parkour/EVG escape before
+                                   // teleport is allowed. Higher = teleport is rarer / more last-resort.
 
     // [Followers]
     bool followerReplay = true;    // followers reproduce the player's parkour route to keep up
@@ -71,4 +75,5 @@ private:
     RE::TESGlobal* gFollowerReplay = nullptr;
     RE::TESGlobal* gDebugLogging = nullptr;
     RE::TESGlobal* gEvgTraversal = nullptr;
+    RE::TESGlobal* gTeleportEscalation = nullptr;
 };

@@ -92,8 +92,10 @@ namespace
              "bEnableParkour=1\n"
              "; Indoors: 0 = no parkour (default), 1 = steps and vaults only, 2 = everything\n"
              "iIndoorMode=0\n"
-             "; Max climb height in game units (250 = SkyParkour max; mountains/walls count)\n"
-             "fMaxClimbHeight=250.0\n"
+             "; Max climb height in game units. 130 (default) = steps, vaults and low/chest ledges\n"
+             "; only; NPCs won't scale walls, houses or mountainsides. Raise toward 250 (SkyParkour's\n"
+             "; own max) for full cliff/mountain climbing.\n"
+             "fMaxClimbHeight=130.0\n"
              "; NPCs use EVG Animated Traversal markers (ladders, squeezes, ledges...) if installed\n"
              "bEnableEVGTraversal=1\n"
              "\n"
@@ -102,10 +104,14 @@ namespace
              "bFollowerReplay=1\n"
              "\n"
              "[Avoidance]\n"
-             "; Teleport-around-obstacle fallback when parkour is unavailable or finds no ledge\n"
+             "; Teleport-around-obstacle fallback, used only as a LAST resort when animated\n"
+             "; traversal can't help. Set 0 to disable teleporting entirely.\n"
              "bEnableTeleportFallback=1\n"
              "; How far sideways the bypass teleport goes\n"
              "fSnapDistance=100.0\n"
+             "; How many times an NPC must trigger stuck (with no parkour/EVG escape) before a\n"
+             "; teleport is allowed. Higher = teleport is rarer and more of a true last resort.\n"
+             "iTeleportEscalation=3\n"
              "\n"
              "[Filters]\n"
              "; 0 = NPCs in combat ARE processed (guards/foes climb after you)\n"
@@ -153,6 +159,7 @@ void Settings::Load()
     parkourIndoorMode = std::clamp(getInt("parkour/iindoormode", parkourIndoorMode), 0, 2);
     maxClimbHeight = std::clamp(getFloat("parkour/fmaxclimbheight", maxClimbHeight), 60.0f, 250.0f);
     enableEvgTraversal = getBool("parkour/benableevgtraversal", enableEvgTraversal);
+    teleportEscalation = std::clamp(getInt("avoidance/iteleportescalation", teleportEscalation), 1, 10);
 
     followerReplay = getBool("followers/bfollowerreplay", followerReplay);
 
@@ -198,6 +205,7 @@ void Settings::BindGlobals()
     gFollowerReplay   = lookup(0x80E);
     gDebugLogging     = lookup(0x80F);
     gEvgTraversal     = lookup(0x811);
+    gTeleportEscalation = lookup(0x812);
 
     if (gEnabled) {
         spdlog::info("NPCPathingNG: {} found — settings driven by MCM globals", PLUGIN_FILE);
@@ -238,4 +246,5 @@ void Settings::Refresh()
     followerReplay = asBool(gFollowerReplay, followerReplay);
     debugLogging = asBool(gDebugLogging, debugLogging);
     enableEvgTraversal = asBool(gEvgTraversal, enableEvgTraversal);
+    teleportEscalation = std::clamp(asInt(gTeleportEscalation, teleportEscalation), 1, 10);
 }

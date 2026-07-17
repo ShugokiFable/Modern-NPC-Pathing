@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.2
+# NPC Pathing NG v2.4
 
 NPCs finally move like they belong in your modded world. A runtime navmesh failsafe **plus full NPC SkyParkour and NPC EVG Animated Traversal**: followers retrace your climbing route instead of teleporting to you, guards and enemies climb after you when you kite them onto a rock, NPCs use EVG traversal points (ladders, squeezes, ledges) with real animations instead of the teleport the original framework falls back to, and any humanoid NPC that walks into broken navmesh gets itself unstuck — by traversing, vaulting, climbing, or (as a last resort) a short validated sidestep teleport.
 
@@ -10,8 +10,11 @@ When *you* vault or climb with SkyParkour, the mod records the spot and directio
 **Combat pursuit**
 NPCs in combat are processed by default. A guard chasing your bounty up a rocky hill will climb the same ledges you did (stuck detection kicks in within ~half a second of them running into the rock face). Same for bandits, draugr-free humanoid foes, etc. If it misbehaves in your setup, one MCM toggle turns it off.
 
-**Everything climbs, everywhere (outdoors)**
-Full SkyParkour height range by default — 250 units, enough for city walls and rocky mountainsides. Indoors, parkour is **off by default** (no NPCs scaling your kitchen); the teleport fallback still quietly fixes stuck NPCs inside. MCM lets you allow steps & vaults or everything indoors if you want.
+**Climbing that stays grounded**
+Default max climb height is **130 units** — steps, vaults, and low/chest-height ledges only. NPCs get over the obstacles that actually break navmesh without scaling walls, houses, or mountainsides. (This is intentionally lower than the player's own SkyParkour range of 250; raise the MCM/INI value toward 250 if you want NPCs climbing full cliffs too.) Indoors, parkour is **off by default**; the teleport fallback still quietly fixes stuck NPCs inside.
+
+**Teleport is a genuine last resort**
+The sidestep teleport only fires when an NPC is wedged against real *static* geometry (not the player's body, not another actor, not an AI/dialogue hold) **and** has failed to escape via parkour/EVG several times running. Enemies pressing into you mid-fight, and NPCs held still during conversation, are never teleported. Tune how last-resort it is with the Teleport Last-Resort Threshold, or turn teleporting off entirely.
 
 **NPCs use EVG Animated Traversal — with animations, not teleports**
 EVG AT's traversal points are furniture markers whose use-animation OAR-swaps into the traversal move — which means NPCs can use them natively; the framework just never wired them up (its NPC handling is literally commented out, so patch mods teleport NPCs instead). This mod does the wiring: a stuck NPC near a marker that points the right way is sent through it — climbing the ladder, squeezing the crack, vaulting the ledge, animation and all. And when *you* use an EVG point, your followers use the **same marker** behind you. Works with every EVG patch collection automatically (detection is by marker furniture base, not by location). Fully optional — auto-disables if EVG AT isn't installed.

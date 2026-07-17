@@ -8,7 +8,9 @@
 #include "RE/A/ActorState.h"
 #include "RE/B/bhkCharacterController.h"
 #include "RE/B/bhkWorld.h"
+#include "RE/C/CollisionLayers.h"
 #include "RE/D/DialogueMenu.h"
+#include "RE/F/FormTypes.h"
 #include "RE/H/hkpCharacterState.h"
 #include "RE/M/MenuTopicManager.h"
 #include "RE/P/PlayerCharacter.h"
@@ -34,6 +36,22 @@ namespace
     RE::NiPoint3 ForwardVector(RE::Actor* a_actor)
     {
         return YawToForward(a_actor->GetAngleZ());
+    }
+
+    // A ray that lands on an actor's body (the player or another NPC) is a
+    // dynamic obstacle, not a navmesh failure — never a reason to reposition.
+    bool IsActorHit(const Raycast::Result& a_hit)
+    {
+        switch (a_hit.layer) {
+        case RE::COL_LAYER::kCharController:
+        case RE::COL_LAYER::kBiped:
+        case RE::COL_LAYER::kBipedNoCC:
+        case RE::COL_LAYER::kDeadBip:
+            return true;
+        default:
+            break;
+        }
+        return a_hit.hitRef && a_hit.hitRef->GetFormType() == RE::FormType::ActorCharacter;
     }
 
     // How close a follower must be to a recorded player parkour point to replay it.
@@ -121,6 +139,37 @@ bool PathingManager::IsTeammate(RE::Actor* a_actor) const
     }
     auto* followerFaction = static_cast<RE::TESFaction*>(RE::TESForm::LookupByID(0x0005C84E));  // CurrentFollowerFaction
     return followerFaction && a_actor->IsInFaction(followerFaction);
+}
+
+// The single gate that separates a real navmesh wedge from every false
+// positive (dialogue holds, scene actors, an enemy pressing into the player):
+// there must be solid *static* geometry within a stride ahead.
+bool PathingManager::IsGenuinelyWallStuck(RE::Actor* a_actor) const
+{
+    const RE::NiPoint3 pos = a_actor->GetPosition();
+    const RE::NiPoint3 fwd = ForwardVector(a_actor);
+    for (float h : { 20.0f, 70.0f }) {  // knee and chest
+        const auto hit = Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, h), fwd, 60.0f);
+        if (hit.didHit && !IsActorHit(hit)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PathingManager::InCombatNearPlayer(RE::Actor* a_actor) const
+{
+    if (!a_actor->IsInCombat()) {
+        return false;
+    }
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        return false;
+    }
+    // ~melee-to-charge range; inside this an enemy that "stops moving" is
+    // pressing the attack into the player, not wedged in the world.
+    constexpr float kCombatHoldRange = 320.0f;
+    return (a_actor->GetPosition() - player->GetPosition()).Length() < kCombatHoldRange;
 }
 
 // Cheap runtime conditions, re-evaluated every sample.
@@ -369,7 +418,9 @@ void PathingManager::ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry)
     if (moved < settings->stuckDistance) {
         a_entry.stuckCount++;
     } else {
+        // Moving normally again — fully recovered.
         a_entry.stuckCount = 0;
+        a_entry.escalation = 0;
     }
 
     // Followers react twice as fast and retry sooner — losing the player's
@@ -381,26 +432,38 @@ void PathingManager::ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry)
     if (a_entry.stuckCount >= threshold) {
         a_entry.stuckCount = 0;
         a_entry.cooldownUntil = now + cooldown;
+        a_entry.escalation++;  // Unstick resets this to 0 on a successful traversal
         Unstick(a_actor, a_entry, teammate);
     }
 }
 
 void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_teammate)
 {
+    (void)a_teammate;
     auto* settings = Settings::GetSingleton();
 
-    // EVG markers first — they're hand-placed exactly where pathing breaks,
-    // so they beat generic geometry scanning.
+    // 1) Animated traversal is always the goal — try it first, every time.
+    //    EVG markers are hand-placed where pathing breaks; parkour self-gates
+    //    on real ledge geometry, so it can't fire in open space.
     if (settings->enableEvgTraversal &&
         TryEvgTraversal(a_actor, a_entry, ForwardVector(a_actor))) {
+        a_entry.escalation = 0;
         return;
     }
     if (settings->enableParkour && TryParkour(a_actor)) {
+        a_entry.escalation = 0;
         return;
     }
-    if (settings->enableTeleportFallback) {
-        // Teammates get the teleport too — better than the vanilla "warp to player".
-        (void)a_teammate;
+
+    // 2) Teleport is the last resort, and only for an NPC that is genuinely
+    //    wedged against static geometry and has stayed that way across several
+    //    stuck triggers (so animated traversal really had its chance). An enemy
+    //    pressing into the player, or anyone held by AI/dialogue in open space,
+    //    never qualifies — this is what made NPCs "teleport more than traverse".
+    if (settings->enableTeleportFallback &&
+        a_entry.escalation >= settings->teleportEscalation &&
+        !InCombatNearPlayer(a_actor) &&
+        IsGenuinelyWallStuck(a_actor)) {
         TryTeleportBypass(a_actor);
     }
 }
@@ -490,19 +553,9 @@ bool PathingManager::TryTeleportBypass(RE::Actor* a_actor)
     const RE::NiPoint3 pos = a_actor->GetPosition();
     const float yaw = a_actor->GetAngleZ();
 
-    // Only teleport an NPC that is genuinely wall-stuck: solid geometry ahead
-    // at knee or chest height. NPCs held in place by AI or scripts while their
-    // graph keeps "walking" (dialogue, scenes, holds) stand in open space and
-    // must never be zapped.
-    {
-        const RE::NiPoint3 fwd(std::sin(yaw), std::cos(yaw), 0.0f);
-        const bool blockedAhead =
-            Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, 70.0f), fwd, 60.0f).didHit ||
-            Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, 20.0f), fwd, 60.0f).didHit;
-        if (!blockedAhead) {
-            return false;
-        }
-    }
+    // Caller (Unstick) has already confirmed this NPC is genuinely wall-stuck,
+    // not in combat near the player, and has failed animated traversal
+    // repeatedly. Find a validated sidestep around the obstacle.
 
     // Sideways-biased candidate directions, degrees relative to facing.
     constexpr float candidates[] = { 50.0f, -50.0f, 90.0f, -90.0f, 130.0f, -130.0f };

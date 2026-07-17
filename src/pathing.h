@@ -18,6 +18,7 @@ struct ActorEntry
     double       lastSeenTime = 0.0;
     double       lastEvgTime = -100.0;  // last EVG marker activation attempt
     int          stuckCount = 0;
+    int          escalation = 0;        // consecutive stuck triggers with no parkour/EVG escape
     bool         filterChecked = false;
     bool         passesFilter = false;
 };
@@ -73,6 +74,11 @@ private:
     bool PassesStaticFilter(RE::Actor* a_actor) const;
     bool PassesDynamicFilter(RE::Actor* a_actor) const;
     bool IsTeammate(RE::Actor* a_actor) const;
+    /// Solid *static* geometry within reach ahead — a real navmesh wedge, not
+    /// the player's body, another actor, or an AI/dialogue hold.
+    bool IsGenuinelyWallStuck(RE::Actor* a_actor) const;
+    /// In combat and close to the player: pressing the attack, not navmesh-stuck.
+    bool InCombatNearPlayer(RE::Actor* a_actor) const;
     void TrackPlayerParkour();
     void ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry);
     bool TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry);

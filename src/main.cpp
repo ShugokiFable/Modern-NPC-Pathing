@@ -81,7 +81,7 @@ namespace
 extern "C" __declspec(dllexport) constinit auto SKSEPlugin_Version = []() noexcept {
     SKSE::PluginVersionData v;
     v.PluginName("NPCPathingNG");
-    v.PluginVersion(REL::Version{ 2, 3, 0 });
+    v.PluginVersion(REL::Version{ 2, 4, 0 });
     v.AuthorName("karlo");
     v.UsesAddressLibrary(true);
     v.UsesStructsPost629(true);
@@ -102,7 +102,7 @@ extern "C" __declspec(dllexport) bool SKSEPlugin_Load(const SKSE::LoadInterface*
     SKSE::Init(a_skse);
     InitializeLogging();
 
-    spdlog::info("NPCPathingNG v2.3.0 loading (runtime {})", REL::Module::get().version().string());
+    spdlog::info("NPCPathingNG v2.4.0 loading (runtime {})", REL::Module::get().version().string());
 
     if (auto* messaging = SKSE::GetMessagingInterface()) {
         messaging->RegisterListener(MessageHandler);

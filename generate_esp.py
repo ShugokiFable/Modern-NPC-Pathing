@@ -71,7 +71,7 @@ GLOBS = [
     (0x805, 'NPNG_ActorsPerFrame',   10.0),
     (0x806, 'NPNG_EnableParkour',    1.0),
     (0x807, 'NPNG_IndoorMode',       0.0),   # no parkour indoors by default
-    (0x808, 'NPNG_MaxClimbHeight',   250.0),
+    (0x808, 'NPNG_MaxClimbHeight',   130.0),  # steps/vaults/low ledges; raise to 250 for mountains
     (0x809, 'NPNG_TeleportFallback', 1.0),
     (0x80A, 'NPNG_SnapDistance',     100.0),
     (0x80B, 'NPNG_ExcludeInCombat',  0.0),   # combat pursuit ON by default
@@ -80,6 +80,7 @@ GLOBS = [
     (0x80E, 'NPNG_FollowerReplay',   1.0),
     (0x80F, 'NPNG_DebugLogging',     0.0),
     (0x811, 'NPNG_EVGTraversal',     1.0),  # 0x810 is the MCM quest
+    (0x812, 'NPNG_TeleportEscalation', 3.0),
 ]
 
 # ── plugin assembly ──────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ def generate(esp_path):
     r_qust = [make_qust(P | 0x810)]
 
     num_records = len(r_glob) + len(r_qust)
-    tes4_data = (sub('HEDR', struct.pack('<fII', 1.71, num_records, P | 0x812))
+    tes4_data = (sub('HEDR', struct.pack('<fII', 1.71, num_records, P | 0x813))
                  + sub('CNAM', zstr('karlo'))
                  + sub('SNAM', zstr('NPC Pathing NG - navmesh failsafe + NPC SkyParkour'))
                  + sub('MAST', zstr('Skyrim.esm'))
