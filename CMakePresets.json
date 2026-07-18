@@ -3,13 +3,19 @@
   "configurePresets": [
     {
       "name": "windows-msvc",
-      "displayName": "Windows MSVC",
-      "generator": "Visual Studio 18 2026",
+      "displayName": "Windows MSVC 2022 x64",
+      "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
+      "binaryDir": "${sourceDir}/build"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-msvc-release",
+      "displayName": "Windows MSVC 2022 Release",
+      "configurePreset": "windows-msvc",
+      "configuration": "Release",
+      "jobs": 2
     }
   ]
 }

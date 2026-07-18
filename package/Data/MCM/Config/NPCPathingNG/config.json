@@ -30,7 +30,7 @@
                 {"text": "EVG Animated Traversal", "type": "header"},
                 {"id": "bEVGTraversal", "text": "NPCs Use EVG Markers", "help": "Stuck NPCs and followers use EVG Animated Traversal points (ladders, squeezes, ledges, vaults, drops) with full animations instead of teleporting. Needs EVG Animated Traversal installed.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|811"}},
                 {"text": "Teleport Fallback", "type": "header"},
-                {"id": "bTeleportFallback", "text": "Teleport Bypass", "help": "When parkour can't help (no patch, no ledge, indoors), sidestep-teleport the NPC around the obstacle. Fully collision-validated.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|809"}},
+                {"id": "bTeleportFallback", "text": "Teleport Bypass", "help": "When SkyParkour and EVG cannot help, sidestep-teleport the NPC around the obstacle as a collision-validated last resort.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|809"}},
                 {"id": "fSnapDistance", "text": "Bypass Distance", "help": "How far sideways the bypass teleport goes.", "type": "slider", "valueOptions": {"min": 40, "max": 300, "step": 10, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80A"}},
                 {"id": "iTeleportEscalation", "text": "Teleport Last-Resort Threshold", "help": "How many times an NPC must fail to escape via parkour/EVG before a teleport is allowed. Higher = teleport is rarer and animated traversal is preferred. Combined with a genuine wall-block check, this stops NPCs teleporting when they could path or climb instead.", "type": "slider", "valueOptions": {"min": 1, "max": 10, "step": 1, "formatString": "{0}", "sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|812"}}
             ]
@@ -40,7 +40,7 @@
             "cursorFillMode": "topToBottom",
             "content": [
                 {"text": "Followers", "type": "header"},
-                {"id": "bFollowerReplay", "text": "Followers Retrace Your Parkour", "help": "When you climb or vault with SkyParkour, followers reaching that spot perform the same move to keep up. Works with Nether's Follower Framework and any mod that flags followers as teammates.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80E"}},
+                {"id": "bFollowerReplay", "text": "Followers Retrace Your Parkour", "help": "When you use SkyParkour or an EVG traversal marker, followers reaching that spot replay the move. Works with Nether's Follower Framework and any mod that flags followers as teammates.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80E"}},
                 {"id": "bExcludeFollowers", "text": "Exclude Followers", "help": "Turn ON to leave followers completely untouched (also disables replay).", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80C"}},
                 {"text": "Combat", "type": "header"},
                 {"id": "bExcludeInCombat", "text": "Exclude NPCs In Combat", "help": "OFF by default so guards and enemies chasing you can climb after you. Turn ON if combat parkour causes oddities in your setup.", "type": "toggle", "valueOptions": {"sourceType": "GlobalValue", "sourceForm": "NPCPathingNG.esp|80B"}},

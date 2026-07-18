@@ -100,7 +100,7 @@ namespace
              "bEnableEVGTraversal=1\n"
              "\n"
              "[Followers]\n"
-             "; Followers reproduce the player's parkour moves to keep up (Nether's FF compatible)\n"
+             "; Followers reproduce the player's SkyParkour and EVG traversal moves (NFF compatible)\n"
              "bFollowerReplay=1\n"
              "\n"
              "[Avoidance]\n"
@@ -185,7 +185,10 @@ void Settings::BindGlobals()
 
     auto lookup = [&](RE::FormID a_localID) -> RE::TESGlobal* {
         auto* form = dataHandler->LookupForm(a_localID, PLUGIN_FILE);
-        return form ? static_cast<RE::TESGlobal*>(form) : nullptr;
+        // Type-checked, but via Is() rather than As<TESGlobal>(): this CommonLib
+        // build does not instantiate As<> for TESGlobal, so the templated cast
+        // fails to link (LNK2019). Is() is an inline formType compare.
+        return (form && form->Is(RE::FormType::Global)) ? static_cast<RE::TESGlobal*>(form) : nullptr;
     };
 
     gEnabled          = lookup(0x800);

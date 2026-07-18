@@ -1,6 +1,7 @@
 #include "evg_traversal.h"
 #include "pathing.h"
 #include "settings.h"
+#include "version.h"
 
 #include "SKSE/SKSE.h"
 
@@ -81,7 +82,7 @@ namespace
 extern "C" __declspec(dllexport) constinit auto SKSEPlugin_Version = []() noexcept {
     SKSE::PluginVersionData v;
     v.PluginName("NPCPathingNG");
-    v.PluginVersion(REL::Version{ 2, 4, 0 });
+    v.PluginVersion(REL::Version{ PluginVersion::Major, PluginVersion::Minor, PluginVersion::Patch });
     v.AuthorName("karlo");
     v.UsesAddressLibrary(true);
     v.UsesStructsPost629(true);
@@ -93,7 +94,7 @@ extern "C" __declspec(dllexport) bool SKSEPlugin_Query(const SKSE::QueryInterfac
 {
     a_info->infoVersion = SKSE::PluginInfo::kVersion;
     a_info->name = "NPCPathingNG";
-    a_info->version = 2;
+    a_info->version = PluginVersion::Legacy;
     return true;
 }
 
@@ -102,7 +103,8 @@ extern "C" __declspec(dllexport) bool SKSEPlugin_Load(const SKSE::LoadInterface*
     SKSE::Init(a_skse);
     InitializeLogging();
 
-    spdlog::info("NPCPathingNG v2.4.0 loading (runtime {})", REL::Module::get().version().string());
+    spdlog::info("NPCPathingNG v{} loading (runtime {})", PluginVersion::String,
+                 REL::Module::get().version().string());
 
     if (auto* messaging = SKSE::GetMessagingInterface()) {
         messaging->RegisterListener(MessageHandler);

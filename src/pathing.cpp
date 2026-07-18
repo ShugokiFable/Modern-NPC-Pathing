@@ -137,7 +137,12 @@ bool PathingManager::IsTeammate(RE::Actor* a_actor) const
     if (a_actor->IsPlayerTeammate()) {
         return true;
     }
-    auto* followerFaction = static_cast<RE::TESFaction*>(RE::TESForm::LookupByID(0x0005C84E));  // CurrentFollowerFaction
+    // Type-checked via Is() + static_cast, not LookupByID<TESFaction>: this
+    // CommonLib build doesn't instantiate As<TESFaction>, so the templated
+    // lookup fails to link (LNK2019).
+    auto* form = RE::TESForm::LookupByID(0x0005C84E);  // CurrentFollowerFaction
+    auto* followerFaction =
+        (form && form->Is(RE::FormType::Faction)) ? static_cast<RE::TESFaction*>(form) : nullptr;
     return followerFaction && a_actor->IsInFaction(followerFaction);
 }
 
@@ -244,23 +249,40 @@ void PathingManager::TrackPlayerParkour()
         return;
     }
 
-    bool ongoing = false;
-    player->GetGraphVariableBool(SkyParkourGraph::VarOngoing, ongoing);
+    auto* settings = Settings::GetSingleton();
 
-    if (ongoing && !playerWasParkouring) {
-        PlayerParkourEvent ev;
-        ev.pos = player->GetPosition();
-        ev.yaw = player->GetAngleZ();
-        ev.time = now;
-        playerEvents.push_back(std::move(ev));
-        while (playerEvents.size() > 16) {
-            playerEvents.pop_front();
+    // Drop event types as soon as their integration is disabled. Otherwise an
+    // old move can wake back up when the toggle is re-enabled within the event
+    // lifetime and make a follower replay stale traversal history.
+    for (auto it = playerEvents.begin(); it != playerEvents.end();) {
+        const bool isEvg = static_cast<bool>(it->furnRef);
+        if ((isEvg && !settings->enableEvgTraversal) ||
+            (!isEvg && !settings->enableParkour)) {
+            it = playerEvents.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    bool ongoing = false;
+    if (settings->enableParkour) {
+        player->GetGraphVariableBool(SkyParkourGraph::VarOngoing, ongoing);
+
+        if (ongoing && !playerWasParkouring) {
+            PlayerParkourEvent ev;
+            ev.pos = player->GetPosition();
+            ev.yaw = player->GetAngleZ();
+            ev.time = now;
+            playerEvents.push_back(std::move(ev));
+            while (playerEvents.size() > 16) {
+                playerEvents.pop_front();
+            }
         }
     }
     playerWasParkouring = ongoing;
 
     // EVG traversal: fires when the player enters one of the marker furnitures.
-    if (EvgTraversal::IsAvailable()) {
+    if (settings->enableEvgTraversal && EvgTraversal::IsAvailable()) {
         RE::FormID furnBase = 0;
         auto furnHandle = player->GetOccupiedFurniture();
         auto furnPtr = furnHandle.get();
@@ -279,6 +301,8 @@ void PathingManager::TrackPlayerParkour()
             }
         }
         playerLastFurnBase = furnBase;
+    } else {
+        playerLastFurnBase = 0;
     }
 }
 
@@ -305,6 +329,10 @@ bool PathingManager::TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry)
             continue;
         }
         const bool isEvg = static_cast<bool>(ev.furnRef);
+        if ((isEvg && !settings->enableEvgTraversal) ||
+            (!isEvg && !settings->enableParkour)) {
+            continue;
+        }
         // SkyParkour replays only make sense while the player is above the
         // follower; EVG markers (squeezes, ladders, drops) replay regardless.
         if (!isEvg && playerAbove < kReplayMinPlayerAbove) {
@@ -397,7 +425,8 @@ void PathingManager::ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry)
 
     // Followers first try to retrace the player's parkour route — this fires
     // even when they're standing still, confused by a failed path.
-    if (teammate && settings->enableParkour && settings->followerReplay &&
+    if (teammate && settings->followerReplay &&
+        (settings->enableParkour || settings->enableEvgTraversal) &&
         TryFollowerReplay(a_actor, a_entry)) {
         return;
     }
@@ -463,8 +492,9 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
     if (settings->enableTeleportFallback &&
         a_entry.escalation >= settings->teleportEscalation &&
         !InCombatNearPlayer(a_actor) &&
-        IsGenuinelyWallStuck(a_actor)) {
-        TryTeleportBypass(a_actor);
+        IsGenuinelyWallStuck(a_actor) &&
+        TryTeleportBypass(a_actor)) {
+        a_entry.escalation = 0;
     }
 }
 
@@ -566,11 +596,25 @@ bool PathingManager::TryTeleportBypass(RE::Actor* a_actor)
             const float angle = yaw + degrees * degToRad;
             const RE::NiPoint3 dir(std::sin(angle), std::cos(angle), 0.0f);
 
-            // Path must be clear at chest and knee height — never teleport through geometry.
-            const RE::NiPoint3 chest = pos + RE::NiPoint3(0.0f, 0.0f, 70.0f);
-            const RE::NiPoint3 knee = pos + RE::NiPoint3(0.0f, 0.0f, 20.0f);
-            if (Raycast::Cast(a_actor, chest, dir, dist + 20.0f).didHit ||
-                Raycast::Cast(a_actor, knee, dir, dist + 20.0f).didHit) {
+            // Sweep a conservative body-width corridor at knee and chest height.
+            // A clear center ray alone can still clip the NPC's shoulders through
+            // a corner or narrow prop.
+            constexpr float kBodyRadius = 28.0f;
+            const RE::NiPoint3 side(-dir.y, dir.x, 0.0f);
+            bool pathBlocked = false;
+            for (float height : { 20.0f, 70.0f }) {
+                for (float lateral : { -kBodyRadius, 0.0f, kBodyRadius }) {
+                    const RE::NiPoint3 start = pos + RE::NiPoint3(0.0f, 0.0f, height) + side * lateral;
+                    if (Raycast::Cast(a_actor, start, dir, dist + 20.0f).didHit) {
+                        pathBlocked = true;
+                        break;
+                    }
+                }
+                if (pathBlocked) {
+                    break;
+                }
+            }
+            if (pathBlocked) {
                 continue;
             }
 
@@ -587,10 +631,41 @@ bool PathingManager::TryTeleportBypass(RE::Actor* a_actor)
                 continue;  // big drop or rise — don't yeet NPCs off cliffs
             }
 
-            // Headroom at the destination.
+            if (IsActorHit(ground)) {
+                continue;  // never use another actor as the destination floor
+            }
+
+            // Headroom and capsule-width clearance at the destination. A clear
+            // travel ray alone is not enough if the endpoint is inside a narrow
+            // corner, prop, or another collision hull.
             const RE::NiPoint3 headroomStart(candidate.x, candidate.y, groundZ + 10.0f);
             const RE::NiPoint3 up(0.0f, 0.0f, 1.0f);
             if (Raycast::Cast(a_actor, headroomStart, up, 110.0f).didHit) {
+                continue;
+            }
+
+            constexpr float kDiagonal = 0.70710678f;
+            constexpr RE::NiPoint3 clearanceDirs[] = {
+                { 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
+                { 0.0f, 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f },
+                { kDiagonal, kDiagonal, 0.0f }, { -kDiagonal, kDiagonal, 0.0f },
+                { kDiagonal, -kDiagonal, 0.0f }, { -kDiagonal, -kDiagonal, 0.0f }
+            };
+            bool destinationBlocked = false;
+            for (float height : { 25.0f, 70.0f }) {
+                const RE::NiPoint3 center(candidate.x, candidate.y, groundZ + height);
+                for (const auto& clearanceDir : clearanceDirs) {
+                    const auto clearance = Raycast::Cast(a_actor, center, clearanceDir, kBodyRadius);
+                    if (clearance.didHit) {
+                        destinationBlocked = true;
+                        break;
+                    }
+                }
+                if (destinationBlocked) {
+                    break;
+                }
+            }
+            if (destinationBlocked) {
                 continue;
             }
 
@@ -642,9 +717,9 @@ void PathingManager::UpdateParkourJobs(float a_delta)
                     it->phase = ParkourJob::Phase::Ongoing;
                     it->phaseStart = now;
                 } else if (now - it->phaseStart > 1.0) {
-                    // Graph never entered the state — clear the ledge var and give up.
-                    actor->SetGraphVariableInt(SkyParkourGraph::VarLedge,
-                                               static_cast<std::int32_t>(NpcParkourType::NoLedge));
+                    // NotifyAnimationGraph accepted the request but the graph never
+                    // entered the state. Explicitly cancel any delayed transition.
+                    NpcParkour::OnParkourEnd(actor, true);
                     remove = true;
                 }
                 break;
@@ -655,8 +730,10 @@ void PathingManager::UpdateParkourJobs(float a_delta)
                     remove = true;
                     break;
                 }
-                if (!ongoing || now - it->phaseStart > 8.0) {
-                    NpcParkour::OnParkourEnd(actor, true);
+                const bool timedOut = now - it->phaseStart > 8.0;
+                if (!ongoing || timedOut) {
+                    // Natural graph completion needs cleanup, not a forced interrupt.
+                    NpcParkour::OnParkourEnd(actor, timedOut);
                     remove = true;
                     break;
                 }
@@ -695,6 +772,16 @@ void PathingManager::UpdateParkourJobs(float a_delta)
     }
 }
 
+void PathingManager::CancelParkourJobs(bool a_sendInterrupt)
+{
+    for (auto& job : jobs) {
+        if (auto actorPtr = job.handle.get()) {
+            NpcParkour::OnParkourEnd(actorPtr.get(), a_sendInterrupt);
+        }
+    }
+    jobs.clear();
+}
+
 void PathingManager::CleanupEntries()
 {
     constexpr double staleAfter = 30.0;  // seconds unseen
@@ -714,12 +801,25 @@ void PathingManager::OnFrame(float a_delta)
 {
     auto* settings = Settings::GetSingleton();
     settings->Refresh();  // MCM globals -> members; no-op without the ESP
+    now += a_delta;
 
-    if (!settings->enabled || !keywordsReady) {
+    if (!settings->enabled) {
+        // Disabling during a climb must restore controller simulation and graph state.
+        if (wasEnabled) {
+            CancelParkourJobs(true);
+            entries.clear();
+            playerEvents.clear();
+            playerWasParkouring = false;
+            playerLastFurnBase = 0;
+        }
+        wasEnabled = false;
         return;
     }
+    wasEnabled = true;
 
-    now += a_delta;
+    if (!keywordsReady) {
+        return;
+    }
 
     // Skip everything during loads, transitions and the main menu — half the
     // world singletons (TES::worldSpace and friends) are in flux then.
@@ -728,8 +828,13 @@ void PathingManager::OnFrame(float a_delta)
         return;
     }
 
-    if (settings->followerReplay) {
+    if (settings->followerReplay &&
+        (settings->enableParkour || settings->enableEvgTraversal)) {
         TrackPlayerParkour();
+    } else {
+        playerEvents.clear();
+        playerWasParkouring = false;
+        playerLastFurnBase = 0;
     }
 
     // Actors mid-parkour need attention every frame.
@@ -776,16 +881,12 @@ void PathingManager::OnFrame(float a_delta)
 
 void PathingManager::Reset()
 {
-    for (auto& job : jobs) {
-        if (auto actorPtr = job.handle.get()) {
-            NpcParkour::OnParkourEnd(actorPtr.get(), false);
-        }
-    }
-    jobs.clear();
+    CancelParkourJobs(false);
     entries.clear();
     playerEvents.clear();
     playerWasParkouring = false;
     playerLastFurnBase = 0;
+    wasEnabled = Settings::GetSingleton()->enabled;
     rrIndex = 0;
     spdlog::debug("NPCPathingNG: state reset");
 }

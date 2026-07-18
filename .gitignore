@@ -22,29 +22,34 @@ CMakeFiles/
 *.lastbuildstate
 *.log
 
-# Compiled plugin (source repo only — binary ships on Nexus)
+# Compiled plugin is built for release artifacts, not committed
 package/Data/SKSE/Plugins/*.dll
 *.dll
 
-# CommonLibSSE local checkout / install (use submodule or local path)
+# Local CommonLibSSE checkout / install
 extern/CommonLibSSE/
 !extern/.gitkeep
 
-# vcpkg
+# vcpkg and IDE state
 vcpkg_installed/
 .vcpkg-root
-
-# IDE / OS
 .vs/
 .vscode/
 .idea/
+
+# OS/editor files
 *.swp
 *~
 Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Local packaging junk
+# Local packages
 *.zip
 *.7z
 package/**/*.bak
+dist/
+
+# Python validation caches
+__pycache__/
+*.pyc

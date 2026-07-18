@@ -7,14 +7,15 @@ The ESP carries MCM-editable GLOB settings and the MCM Helper anchor quest
 so MCM changes apply instantly in-game.
 
 Records:
-  GLOB  0x800-0x80F   settings (floats; bools as 0/1)
-  QUST  0x810         MCM anchor quest (VMAD: MCM_ConfigBase)
+  GLOB  0x800-0x80F, 0x811-0x812   settings (floats; bools as 0/1)
+  QUST  0x810                       MCM anchor quest (VMAD: MCM_ConfigBase)
 
 Run:  python generate_esp.py [output.esp]
 """
 import struct, os, sys
 
 PLUGIN_INDEX = 0x01000000  # one master (Skyrim.esm) -> our records live at index 01
+NEXT_OBJECT_ID = 0x813       # HEDR stores the next local object ID, never a load-order-prefixed FormID
 
 # ── low-level plugin encoding ────────────────────────────────────────────────
 def zstr(s):
@@ -91,7 +92,7 @@ def generate(esp_path):
     r_qust = [make_qust(P | 0x810)]
 
     num_records = len(r_glob) + len(r_qust)
-    tes4_data = (sub('HEDR', struct.pack('<fII', 1.71, num_records, P | 0x813))
+    tes4_data = (sub('HEDR', struct.pack('<fII', 1.71, num_records, NEXT_OBJECT_ID))
                  + sub('CNAM', zstr('karlo'))
                  + sub('SNAM', zstr('NPC Pathing NG - navmesh failsafe + NPC SkyParkour'))
                  + sub('MAST', zstr('Skyrim.esm'))

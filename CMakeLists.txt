@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(NPCPathingNG VERSION 1.0.0 LANGUAGES CXX)
+project(NPCPathingNG VERSION 2.4.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,6 +12,7 @@ find_package(CommonLibSSE CONFIG REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
     src/main.cpp
+    src/version.h
     src/settings.cpp
     src/raycast.cpp
     src/pathing.cpp

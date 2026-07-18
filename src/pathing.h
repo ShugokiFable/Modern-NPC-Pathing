@@ -87,6 +87,7 @@ private:
     bool TryParkour(RE::Actor* a_actor, const RE::NiPoint3* a_fwdOverride = nullptr);
     bool TryTeleportBypass(RE::Actor* a_actor);
     void UpdateParkourJobs(float a_delta);
+    void CancelParkourJobs(bool a_sendInterrupt);
     void CleanupEntries();
 
     // Cached keywords
@@ -107,5 +108,6 @@ private:
     double        lastCleanup = 0.0;
     std::uint32_t rrIndex = 0;
     bool          playerWasParkouring = false;
+    bool          wasEnabled = true;
     RE::FormID    playerLastFurnBase = 0;  // EVG furniture the player is currently using
 };

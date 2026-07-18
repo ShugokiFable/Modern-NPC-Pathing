@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4
+# NPC Pathing NG v2.4.1
 
 NPCs finally move like they belong in your modded world. A runtime navmesh failsafe **plus full NPC SkyParkour and NPC EVG Animated Traversal**: followers retrace your climbing route instead of teleporting to you, guards and enemies climb after you when you kite them onto a rock, NPCs use EVG traversal points (ladders, squeezes, ledges) with real animations instead of the teleport the original framework falls back to, and any humanoid NPC that walks into broken navmesh gets itself unstuck — by traversing, vaulting, climbing, or (as a last resort) a short validated sidestep teleport.
 
@@ -42,7 +42,16 @@ SkyParkour's behavior patch modifies the shared humanoid graphs (`0_master`, `de
 
 MCM: **NPC Pathing NG** in the mod configuration list. INI fallback: `Data/SKSE/Plugins/NPCPathingNG.ini`.
 
-Notable defaults: followers **included**, combat **included**, indoor parkour **disabled**, climb height **250** (max).
+Notable defaults: followers **included**, combat **included**, indoor parkour **disabled**, climb height **130** (steps, vaults, and low/chest ledges).
+
+## 2.4.1 stability update
+
+- Safely cancels and cleans up active NPC parkour when the mod is disabled mid-animation.
+- Keeps SkyParkour and EVG follower replay independent, respecting both MCM toggles and discarding stale disabled-integration events.
+- Clears stale lower-body animation state between parkour moves.
+- Avoids sending a forced interrupt after a naturally completed animation.
+- Resets teleport escalation after a successful bypass and validates the body-width travel corridor and full destination clearance.
+- Corrects ESP header metadata, version metadata, defaults documentation, and release packaging.
 
 ## Logs
 

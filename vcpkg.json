@@ -1,11 +1,8 @@
 {
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
   "name": "npcpathingng",
-  "version": "1.0.0",
+  "version-semver": "2.4.1",
   "description": "NPC Pathing NG — runtime navmesh failsafe for Skyrim SE/AE",
-  "dependencies": [
-    {
-      "name": "commonlibsse-ng",
-      "path": "extern/CommonLibSSE"
-    }
-  ]
+  "license": "GPL-3.0-or-later",
+  "dependencies": []
 }
