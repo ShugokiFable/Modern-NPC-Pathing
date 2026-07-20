@@ -422,7 +422,17 @@ namespace NpcParkour
                 RE::hkVector4 zero(0.0f, 0.0f, 0.0f, 0.0f);
                 ctrl->SetLinearVelocityImpl(zero);
             }
+
+            // Root-motion traversal with simulation off can leave the controller
+            // tilted. The engine rights the *player* from camera input every frame
+            // but never rights NPCs — without this they keep walking diagonally.
+            ctrl->pitchAngle = 0.0f;
+            ctrl->rollAngle = 0.0f;
         }
+
+        // Same for the reference orientation: only yaw is legitimate here.
+        a_actor->data.angle.x = 0.0f;
+        a_actor->data.angle.y = 0.0f;
 
         a_actor->SetGraphVariableInt(SkyParkourGraph::VarLedge,
                                      static_cast<std::int32_t>(NpcParkourType::NoLedge));

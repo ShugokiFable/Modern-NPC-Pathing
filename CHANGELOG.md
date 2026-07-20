@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.2 - 2026-07-20
+
+### Fixed
+
+- NPCs no longer get stuck walking diagonally after traversing fences and ledges. Root cause: the engine rights the *player's* pitch/roll from camera input every frame but never rights NPCs, so a vault that ended tilted (root-motion with simulation off, or a slope-rotated EVG furniture marker) left the actor tilted permanently. Every parkour end now zeroes controller pitch/roll and reference pitch/roll, and a 15-second post-traversal posture guard self-heals any residual tilt on the next detection sample (never in combat, so ranged aiming is untouched).
+
+### Changed
+
+- Follower replay is more reliable: trigger radius raised from 80 to 110 units (the anim-start distance cap still prevents wrong-ledge drags) and the player-above threshold lowered from 60 to 40 units, so followers reproduce more of the player's moves instead of falling back to stuck detection.
+
 ## 2.4.1 - 2026-07-18
 
 ### Fixed

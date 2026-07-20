@@ -17,6 +17,7 @@ struct ActorEntry
     double       cooldownUntil = 0.0;
     double       lastSeenTime = 0.0;
     double       lastEvgTime = -100.0;  // last EVG marker activation attempt
+    double       lastTraversalEnd = -100.0;  // parkour job finished — posture-guard window
     int          stuckCount = 0;
     int          escalation = 0;        // consecutive stuck triggers with no parkour/EVG escape
     bool         filterChecked = false;

@@ -55,12 +55,17 @@ namespace
     }
 
     // How close a follower must be to a recorded player parkour point to replay it.
-    // Keep this tight: triggering from far away detects the wrong ledge and the
-    // anim-start alignment visibly drags the follower.
-    constexpr float kReplayRadius = 80.0f;
+    // 110 with the startPos-gap cap in TryParkour keeps the wrong-ledge/drag
+    // problems away while letting followers catch moves they used to miss.
+    constexpr float kReplayRadius = 110.0f;
     constexpr float kReplayZTolerance = 100.0f;
-    constexpr float kReplayMinPlayerAbove = 60.0f;
+    constexpr float kReplayMinPlayerAbove = 40.0f;
     constexpr double kReplayEventLifetime = 120.0;  // seconds
+
+    // Self-heal window after a traversal we initiated: any residual pitch/roll
+    // found on the actor inside this window is contamination, not intent.
+    constexpr double kPostureGuardWindow = 15.0;  // seconds
+    constexpr float kPostureEpsilon = 0.02f;      // radians (~1.1 deg)
 
     // Per-frame tick: hook PlayerCharacter::Update (vfunc 0xAD). Runs on the main
     // thread once per frame during gameplay, paused in menus.
@@ -412,7 +417,43 @@ void PathingManager::ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry)
         return;
     }
 
-    if (a_actor->IsDead() || now < a_entry.cooldownUntil) {
+    if (a_actor->IsDead()) {
+        a_entry.stuckCount = 0;
+        return;
+    }
+
+    // Posture guard: after a traversal we initiated (SkyParkour job or EVG
+    // furniture), any leftover pitch/roll is contamination — the engine rights
+    // the player from camera input every frame but never rights NPCs, so a
+    // vault that ends tilted leaves them walking diagonally forever. Runs
+    // during the post-traversal cooldown on purpose; never in combat (ranged
+    // NPCs aim with pitch) and never mid-move.
+    const double lastTraversal = std::max(a_entry.lastEvgTime, a_entry.lastTraversalEnd);
+    if (now - lastTraversal < kPostureGuardWindow && !a_actor->IsInCombat()) {
+        bool ongoing = false;
+        a_actor->GetGraphVariableBool(SkyParkourGraph::VarOngoing, ongoing);
+        auto* state = a_actor->AsActorState();
+        auto* ctrl = a_actor->GetCharController();
+        const bool settled = !ongoing && state && ctrl &&
+                             state->GetSitSleepState() == RE::SIT_SLEEP_STATE::kNormal &&
+                             state->GetKnockState() == RE::KNOCK_STATE_ENUM::kNormal &&
+                             ctrl->context.currentState == RE::hkpCharacterStateType::kOnGround;
+        if (settled && (std::abs(a_actor->data.angle.x) > kPostureEpsilon ||
+                        std::abs(a_actor->data.angle.y) > kPostureEpsilon ||
+                        std::abs(ctrl->pitchAngle) > kPostureEpsilon ||
+                        std::abs(ctrl->rollAngle) > kPostureEpsilon)) {
+            a_actor->data.angle.x = 0.0f;
+            a_actor->data.angle.y = 0.0f;
+            ctrl->pitchAngle = 0.0f;
+            ctrl->rollAngle = 0.0f;
+            if (settings->debugLogging) {
+                const char* name = a_actor->GetName();
+                spdlog::info("NPCPathingNG: posture guard righted {}", name ? name : "?");
+            }
+        }
+    }
+
+    if (now < a_entry.cooldownUntil) {
         a_entry.stuckCount = 0;
         return;
     }
@@ -766,6 +807,12 @@ void PathingManager::UpdateParkourJobs(float a_delta)
                 }
                 break;
             }
+        }
+
+        if (remove && actor) {
+            // Open the posture-guard window: the next detection samples will
+            // right any pitch/roll the traversal left behind.
+            entries[actor->GetFormID()].lastTraversalEnd = now;
         }
 
         it = remove ? jobs.erase(it) : std::next(it);

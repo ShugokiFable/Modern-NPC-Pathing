@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.4.1"
+VERSION = "2.4.2"
 EXPECTED_LOCAL_IDS = {
     0x800, 0x801, 0x802, 0x803, 0x804, 0x805, 0x806, 0x807,
     0x808, 0x809, 0x80A, 0x80B, 0x80C, 0x80D, 0x80E, 0x80F,
@@ -39,13 +39,13 @@ class ReleaseTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_version_metadata_is_synchronized(self) -> None:
-        self.assertIn("VERSION 2.4.1", (ROOT / "CMakeLists.txt").read_text())
+        self.assertIn("VERSION 2.4.2", (ROOT / "CMakeLists.txt").read_text())
         self.assertEqual(json.loads((ROOT / "vcpkg.json").read_text())["version-semver"], VERSION)
         version_header = (ROOT / "src/version.h").read_text()
-        self.assertIn('String = "2.4.1"', version_header)
+        self.assertIn('String = "2.4.2"', version_header)
         self.assertIn('(static_cast<std::uint32_t>(Major) << 24)', version_header)
-        self.assertTrue((ROOT / "README.md").read_text().startswith("# NPC Pathing NG v2.4.1"))
-        self.assertTrue((ROOT / "package/README.md").read_text().startswith("# NPC Pathing NG v2.4.1"))
+        self.assertTrue((ROOT / "README.md").read_text().startswith("# NPC Pathing NG v2.4.2"))
+        self.assertTrue((ROOT / "package/README.md").read_text().startswith("# NPC Pathing NG v2.4.2"))
 
     def test_esp_header_and_form_ids(self) -> None:
         self.assertEqual(self.data[:4], b"TES4")
