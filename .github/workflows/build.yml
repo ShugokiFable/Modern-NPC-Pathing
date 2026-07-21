@@ -91,24 +91,57 @@ jobs:
             -DVCPKG_HOST_TRIPLET=x64-windows-static
           cmake --build extern/CommonLibSSE/build --config Release --target install --parallel 2
 
+          # The generated CommonLibSSEConfig.cmake includes CommonLibSSE.cmake
+          # unconditionally, but this pinned commit does not always install that
+          # helper module. Supply it from the source tree when it is absent,
+          # then fail loudly rather than letting the plugin configure step die
+          # with a confusing "include could not find requested file".
+          $dst = Join-Path $PWD "extern/CommonLibSSE/install/lib/cmake/CommonLibSSE"
+          $helper = Join-Path $PWD "extern/CommonLibSSE/cmake/CommonLibSSE.cmake"
+          if ((Test-Path $helper) -and -not (Test-Path (Join-Path $dst "CommonLibSSE.cmake"))) {
+            Write-Host "Installing missing helper module CommonLibSSE.cmake"
+            Copy-Item $helper (Join-Path $dst "CommonLibSSE.cmake")
+          }
+          Write-Host "CommonLibSSE install contents:"
+          Get-ChildItem $dst -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name)" }
+          foreach ($f in @("CommonLibSSEConfig.cmake", "CommonLibSSE-targets.cmake", "CommonLibSSE.cmake")) {
+            if (-not (Test-Path (Join-Path $dst $f))) {
+              throw "CommonLibSSE install incomplete: missing $f"
+            }
+          }
+
       - name: Build NPC Pathing NG
         shell: pwsh
         run: |
           cmake -S . -B build -G "$env:CMAKE_GENERATOR_NAME" -A x64
           cmake --build build --config Release --parallel 2
 
-      - name: Build Nexus archive
+      - name: Verify the plugin actually built
+        shell: pwsh
+        run: |
+          $dll = "package/Data/SKSE/Plugins/NPCPathingNG.dll"
+          if (-not (Test-Path $dll)) { throw "build produced no DLL at $dll" }
+          $version = (Select-String -Path src/version.h -Pattern 'String\s*=\s*"([0-9.]+)"').Matches[0].Groups[1].Value
+          $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $dll))
+          $text = [System.Text.Encoding]::ASCII.GetString($bytes)
+          if (-not $text.Contains($version)) { throw "DLL does not embed version $version" }
+          Write-Host "Built NPCPathingNG.dll embedding version $version"
+          "MOD_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build release archives
         shell: pwsh
         run: |
           python -m unittest discover -s tests -v
           python tools/package_release.py
+          python tools/package_fomod.py
 
+      # Version is read from src/version.h so this never needs editing per release.
       - name: Upload Nexus-ready release
         uses: actions/upload-artifact@v4
         with:
-          name: NPC-Pathing-NG-2.4.1-Nexus
+          name: NPC-Pathing-NG-${{ env.MOD_VERSION }}-Nexus
           path: |
-            dist/NPC Pathing NG 2.4.1.zip
+            dist/*.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
