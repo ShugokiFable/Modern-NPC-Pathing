@@ -6,8 +6,10 @@
 #include "settings.h"
 
 #include "RE/A/ActorState.h"
+#include "RE/B/BGSOpenCloseForm.h"
 #include "RE/B/bhkCharacterController.h"
 #include "RE/B/bhkWorld.h"
+#include "RE/E/ExtraTeleport.h"
 #include "RE/C/CollisionLayers.h"
 #include "RE/D/DialogueMenu.h"
 #include "RE/F/FormTypes.h"
@@ -167,6 +169,52 @@ bool PathingManager::IsGenuinelyWallStuck(RE::Actor* a_actor) const
     return false;
 }
 
+// A doorway is a pathing chokepoint, not a wall to sidestep. Sliding an NPC
+// sideways out of a doorway is always wrong — it pushes them off the only
+// route through. Find the door so Unstick can handle it properly instead.
+RE::TESObjectREFR* PathingManager::FindBlockingDoor(RE::Actor* a_actor) const
+{
+    const RE::NiPoint3 pos = a_actor->GetPosition();
+    const RE::NiPoint3 fwd = ForwardVector(a_actor);
+    for (float h : { 20.0f, 70.0f, 110.0f }) {  // knee, chest, head
+        const auto hit = Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, h), fwd, 90.0f);
+        if (hit.didHit && hit.hitRef && hit.hitRef->GetBaseObject() &&
+            hit.hitRef->GetBaseObject()->Is(RE::FormType::Door)) {
+            return hit.hitRef;
+        }
+    }
+    return nullptr;
+}
+
+// Nudge a stuck NPC's door open. Deliberately narrow: never a load door (that
+// would cell-transition the actor), never locked (NPCs must not bypass locks),
+// and only when actually closed. SetOpenState is used rather than activation
+// so no lock/trap/script side effects ride along.
+bool PathingManager::TryOpenBlockingDoor(RE::Actor* a_actor, RE::TESObjectREFR* a_door)
+{
+    if (!a_door || a_door->IsDisabled() || a_door->IsDeleted()) {
+        return false;
+    }
+    if (a_door->extraList.HasType<RE::ExtraTeleport>()) {
+        return false;  // load door — opening it must stay the AI's decision
+    }
+    if (a_door->IsLocked()) {
+        return false;
+    }
+    if (RE::BGSOpenCloseForm::GetOpenState(a_door) != RE::BGSOpenCloseForm::OPEN_STATE::kClosed) {
+        return false;  // already open/opening — the block is something else
+    }
+
+    RE::BGSOpenCloseForm::SetOpenState(a_door, true, false);
+
+    if (Settings::GetSingleton()->debugLogging) {
+        const char* name = a_actor->GetName();
+        spdlog::info("NPCPathingNG: opened blocking door {:08X} for {}",
+                     a_door->GetFormID(), name ? name : "?");
+    }
+    return true;
+}
+
 bool PathingManager::InCombatNearPlayer(RE::Actor* a_actor) const
 {
     if (!a_actor->IsInCombat()) {
@@ -287,7 +335,8 @@ void PathingManager::TrackPlayerParkour()
     playerWasParkouring = ongoing;
 
     // EVG traversal: fires when the player enters one of the marker furnitures.
-    if (settings->enableEvgTraversal && EvgTraversal::IsAvailable()) {
+    // Only worth recording while followers can actually reuse the marker.
+    if (settings->enableEvgTraversal && EvgTraversal::IsNpcUseSupported()) {
         RE::FormID furnBase = 0;
         auto furnHandle = player->GetOccupiedFurniture();
         auto furnPtr = furnHandle.get();
@@ -353,6 +402,9 @@ bool PathingManager::TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry)
         }
 
         if (isEvg) {
+            if (!EvgTraversal::IsNpcUseSupported()) {
+                continue;  // engine won't let NPCs enter the furniture; don't stall on it
+            }
             auto markerPtr = ev.furnRef.get();
             if (!markerPtr) {
                 continue;
@@ -525,6 +577,17 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
         return;
     }
 
+    // 1b) Doorways are chokepoints, not walls. Never sidestep an NPC out of a
+    //     doorway — that pushes them off the only route through and is a likely
+    //     cause of "NPCs stuck at doors". Give the door a nudge if it is simply
+    //     shut, then let their own pathing take them through either way.
+    if (auto* door = FindBlockingDoor(a_actor)) {
+        if (TryOpenBlockingDoor(a_actor, door)) {
+            a_entry.escalation = 0;
+        }
+        return;
+    }
+
     // 2) Teleport is the last resort, and only for an NPC that is genuinely
     //    wedged against static geometry and has stayed that way across several
     //    stuck triggers (so animated traversal really had its chance). An enemy
@@ -541,7 +604,7 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
 
 bool PathingManager::TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, const RE::NiPoint3& a_fwd)
 {
-    if (!EvgTraversal::IsAvailable()) {
+    if (!EvgTraversal::IsNpcUseSupported()) {
         return false;
     }
     // If a recent activation didn't get this actor moving, let the other

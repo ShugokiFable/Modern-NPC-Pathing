@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.3 - 2026-07-21
+
+### Fixed
+
+- **NPCs no longer get pushed sideways out of doorways.** A doorway is a chokepoint, not a wall — sidestepping an NPC out of one removes them from the only route through and was a likely contributor to NPCs milling around doors. The bypass now recognises a door ahead and never repositions there. If the door is simply shut (and unlocked, and not a load door) it gets opened instead, then the NPC's own pathing takes over.
+- **EVG marker traversal for NPCs now fails loudly instead of silently.** Activating an EVG furniture marker succeeds for the player but is rejected for NPCs: furniture entry for an NPC is driven by the AI package system, which activation cannot force. This is an engine limitation, confirmed from both SKSE and Papyrus. After repeated rejections the mod disables NPC marker traversal for the session, logs one clear explanation, and falls straight through to SkyParkour traversal — no more burning stuck-cycles or stalling follower replay on a call that cannot succeed.
+
 ## 2.4.2 - 2026-07-20
 
 ### Fixed

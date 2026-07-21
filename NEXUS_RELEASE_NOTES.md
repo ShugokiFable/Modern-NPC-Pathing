@@ -1,18 +1,20 @@
-# NPC Pathing NG 2.4.2
+# NPC Pathing NG 2.4.3
 
-## Posture fix and follower-replay tuning
+## Doorways, and honesty about EVG markers
 
-- **Fixed: NPCs stuck walking diagonally after vaulting fences/ledges.** The engine automatically rights the player's tilt every frame but never rights NPCs — a traversal that ended slightly tilted (root-motion vault, or a slope-rotated EVG marker) left them walking at an angle forever. Every traversal now clears pitch/roll on completion, and a 15-second post-traversal posture guard self-heals any residual tilt on the next detection pass. Combat aiming pitch is never touched.
-- **Changed: followers reproduce the player's parkour and EVG moves more reliably** (replay trigger radius 80 → 110 units, player-above threshold 60 → 40). The 2.3.0 safeguards against wrong-ledge detection and visible position dragging remain in force.
+- **Fixed: NPCs pushed sideways out of doorways.** A doorway is a chokepoint, not a wall. Sidestepping an NPC out of one removes them from the only route through, which was a likely contributor to NPCs milling around doors. The bypass now recognises a door ahead and never repositions there. If the door is simply shut — unlocked, and not a load door — it gets opened instead, and the NPC's own pathing takes it from there.
+
+- **EVG marker traversal for NPCs no longer fails silently.** Activating an EVG furniture marker works for the player but is rejected for NPCs. This is an engine limitation, not a load-order problem: furniture entry for an NPC is driven by the AI package system, which activation cannot force. (EVG's own plugin ships an unused quest, AI package, and `EVGNPCActivateItem` fragment script built for exactly this, which its author abandoned.) After repeated rejections the mod now disables NPC marker traversal for the session, logs one clear explanation, and falls straight through to SkyParkour traversal instead of burning stuck-cycles or stalling follower replay.
+
+  **In practice:** SkyParkour traversal, follower SkyParkour replay, the teleport fallback, and player-side EVG use are all unaffected. Only NPC use of EVG markers is disabled, and only because the engine will not permit it.
 
 ## Updating
 
-Replace the previous version with 2.4.2. The ESP keeps the same FormIDs, so a clean save should not be required. Existing MCM values remain compatible.
+Replace the previous version with 2.4.3. The ESP keeps the same FormIDs, so a clean save is not required. Existing MCM values remain compatible.
 
 ## Requirements
 
 - SKSE64
 - Address Library for SKSE Plugins
 - SkyParkour V3 plus its NPC behavior patch for SkyParkour traversal
-- EVG Animated Traversal for EVG marker traversal
 - MCM Helper for the in-game settings menu

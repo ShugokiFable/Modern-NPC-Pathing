@@ -38,6 +38,13 @@ namespace
 
     std::unordered_set<RE::FormID> g_resolvedIDs;  // runtime FormIDs of the bases
     bool g_available = false;
+
+    // NPC furniture entry cannot be forced through activation (see header).
+    // Latch it off after this many consecutive failures instead of retrying
+    // a call that will never succeed.
+    constexpr int kNpcFailureLimit = 3;
+    int  g_npcFailures = 0;
+    bool g_npcUseSupported = true;
 }
 
 namespace EvgTraversal
@@ -70,6 +77,17 @@ namespace EvgTraversal
     bool IsAvailable()
     {
         return g_available;
+    }
+
+    bool IsNpcUseSupported()
+    {
+        return g_available && g_npcUseSupported;
+    }
+
+    void ResetNpcUseState()
+    {
+        g_npcFailures = 0;
+        g_npcUseSupported = true;
     }
 
     bool IsTraversalFurniture(const RE::TESBoundObject* a_base)
@@ -165,8 +183,26 @@ namespace EvgTraversal
         if (!cell || !cell->IsAttached()) {
             return false;
         }
-        // Same call Papyrus ObjectReference.Activate(akActor) makes — the engine
-        // walks the NPC into the furniture and the OAR-swapped anim plays.
-        return a_marker->ActivateRef(a_actor, 0, nullptr, 1, false);
+        // Same call Papyrus ObjectReference.Activate(akActor) makes. This
+        // succeeds for the player but is rejected for NPCs — furniture entry
+        // for an NPC goes through the AI package system, which activation
+        // cannot drive (see header note).
+        const bool ok = a_marker->ActivateRef(a_actor, 0, nullptr, 1, false);
+
+        if (ok) {
+            g_npcFailures = 0;
+            return true;
+        }
+
+        if (g_npcUseSupported && ++g_npcFailures >= kNpcFailureLimit) {
+            g_npcUseSupported = false;
+            spdlog::warn(
+                "NPCPathingNG: EVG marker activation was rejected {} times for NPCs — disabling NPC "
+                "marker traversal for this session. This is an engine limitation, not a load-order "
+                "problem: furniture entry for NPCs is driven by AI packages, so activation cannot "
+                "force it. SkyParkour traversal and the teleport fallback are unaffected.",
+                g_npcFailures);
+        }
+        return false;
     }
 }

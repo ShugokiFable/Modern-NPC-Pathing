@@ -80,6 +80,10 @@ private:
     bool IsGenuinelyWallStuck(RE::Actor* a_actor) const;
     /// In combat and close to the player: pressing the attack, not navmesh-stuck.
     bool InCombatNearPlayer(RE::Actor* a_actor) const;
+    /// A door blocking the way ahead, if any (doorways must never be sidestepped).
+    RE::TESObjectREFR* FindBlockingDoor(RE::Actor* a_actor) const;
+    /// Open a closed, unlocked, non-load door for a stuck NPC.
+    bool TryOpenBlockingDoor(RE::Actor* a_actor, RE::TESObjectREFR* a_door);
     void TrackPlayerParkour();
     void ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry);
     bool TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry);
