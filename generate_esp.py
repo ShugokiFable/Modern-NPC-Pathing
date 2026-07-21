@@ -80,7 +80,7 @@ GLOBS = [
     (0x80D, 'NPNG_ExcludeMounted',   1.0),
     (0x80E, 'NPNG_FollowerReplay',   1.0),
     (0x80F, 'NPNG_DebugLogging',     0.0),
-    (0x811, 'NPNG_EVGTraversal',     1.0),  # 0x810 is the MCM quest
+    (0x811, 'NPNG_EVGTraversal',     0.0),  # 0x810 is the MCM quest
     (0x812, 'NPNG_TeleportEscalation', 3.0),
 ]
 

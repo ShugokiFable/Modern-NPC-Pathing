@@ -35,7 +35,7 @@ public:
     float maxClimbHeight = 130.0f; // climb detection cap. 130 = up to low/chest ledges (steps,
                                    // vaults, low ledges) — NPCs don't scale walls/houses/mountains.
                                    // Raise toward 250 (SkyParkour's own max) for full mountain climbs.
-    bool  enableEvgTraversal = true;  // NPCs use EVG Animated Traversal markers
+    bool  enableEvgTraversal = false;  // NPCs use EVG Animated Traversal markers
 
     // [Avoidance]
     bool  enableTeleportFallback = true;

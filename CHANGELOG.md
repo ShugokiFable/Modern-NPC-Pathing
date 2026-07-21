@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.4.4 - 2026-07-21
+
+### Changed
+
+- **EVG Animated Traversal is now OFF by default, and is confirmed NOT required.** The mod has never had a hard dependency on it (the plugin's only master is Skyrim.esm, and the EVG forms are looked up at runtime and simply skipped when absent). Because NPC marker use cannot work at all - the engine only permits furniture entry through AI packages - leaving it enabled bought nothing and only added marker scans and activation calls. Player-side EVG use is entirely unaffected. Existing saves that already enabled it can turn it off in the MCM.
+
+### Added
+
+- **FOMOD installer with dependency auto-detection.** The installer probes `SkyParkour.esp`, `EVGAnimatedTraversal.esl` and picks a matching configuration:
+  - SkyParkour detected: "SkyParkour traversal" is pre-selected.
+  - SkyParkour absent: "Navmesh failsafe only" is pre-selected instead.
+  - EVG absent or disabled: the experimental EVG option is greyed out entirely, so it cannot be chosen by mistake.
+  Every branch installs a matching INI, so the shipped settings always agree with what is actually installed.
+
 ## 2.4.3 - 2026-07-21
 
 ### Fixed

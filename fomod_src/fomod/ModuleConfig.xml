@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+  <moduleName>NPC Pathing NG 2.4.4</moduleName>
+
+  <!-- Core plugin, ESP, SEQ and MCM config are always installed.
+       The only hard requirements are SKSE and Address Library, neither of
+       which is a plugin file, so they cannot be probed here. -->
+  <requiredInstallFiles>
+    <folder source="core" destination="" priority="0"/>
+  </requiredInstallFiles>
+
+  <installSteps order="Explicit">
+    <installStep name="Configuration">
+      <optionalFileGroups order="Explicit">
+        <group name="Traversal features (auto-detected)" type="SelectExactlyOne">
+          <plugins order="Explicit">
+
+            <plugin name="SkyParkour traversal (recommended)">
+              <description>Stuck NPCs vault, step and climb using SkyParkour animations, and followers reproduce your parkour route. Also includes the navmesh failsafe and the door/teleport handling.
+
+REQUIRES: SkyParkour V3 plus its NPC behaviour patch. If SkyParkour is not installed and enabled, this option still installs fine but the parkour part simply does nothing - pick "Navmesh failsafe only" instead.
+
+EVG Animated Traversal is NOT required and is left disabled.</description>
+              <conditionFlags>
+                <flag name="NPNG_CONFIG">recommended</flag>
+              </conditionFlags>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="SkyParkour.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="SkyParkour + EVG markers (experimental)">
+              <description>As above, but also lets stuck NPCs try EVG Animated Traversal markers.
+
+KNOWN LIMITATION: this currently cannot work. The engine only lets NPCs enter furniture through AI packages, so activating an EVG marker is rejected for NPCs (confirmed from both SKSE and Papyrus). The mod detects the rejection, disables NPC marker use for the session and falls through to SkyParkour. Only pick this if you want to help test a future package-based implementation.
+
+This option is unavailable unless EVGAnimatedTraversal.esl is installed and enabled.</description>
+              <conditionFlags>
+                <flag name="NPNG_CONFIG">evg</flag>
+              </conditionFlags>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="EVGAnimatedTraversal.esl" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="EVGAnimatedTraversal.esl" state="Inactive"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Navmesh failsafe only (no SkyParkour)">
+              <description>Only the navmesh failsafe: stuck detection, doorway handling and the validated teleport bypass. No parkour animations are triggered.
+
+Pick this if you do not use SkyParkour. Nothing else is required.</description>
+              <conditionFlags>
+                <flag name="NPNG_CONFIG">failsafe</flag>
+              </conditionFlags>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="SkyParkour.esp" state="Missing"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="SkyParkour.esp" state="Inactive"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+  </installSteps>
+
+  <conditionalFileInstalls>
+    <patterns>
+      <pattern>
+        <dependencies operator="And">
+          <flagDependency flag="NPNG_CONFIG" value="recommended"/>
+        </dependencies>
+        <files>
+          <folder source="ini_recommended" destination="" priority="1"/>
+        </files>
+      </pattern>
+      <pattern>
+        <dependencies operator="And">
+          <flagDependency flag="NPNG_CONFIG" value="evg"/>
+        </dependencies>
+        <files>
+          <folder source="ini_evg" destination="" priority="1"/>
+        </files>
+      </pattern>
+      <pattern>
+        <dependencies operator="And">
+          <flagDependency flag="NPNG_CONFIG" value="failsafe"/>
+        </dependencies>
+        <files>
+          <folder source="ini_failsafe" destination="" priority="1"/>
+        </files>
+      </pattern>
+    </patterns>
+  </conditionalFileInstalls>
+</config>

@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.3
+# NPC Pathing NG v2.4.4
 
 NPCs finally move like they belong in your modded world. A runtime navmesh failsafe **plus full NPC SkyParkour and NPC EVG Animated Traversal**: followers retrace your climbing route instead of teleporting to you, guards and enemies climb after you when you kite them onto a rock, NPCs use EVG traversal points (ladders, squeezes, ledges) with real animations instead of the teleport the original framework falls back to, and any humanoid NPC that walks into broken navmesh gets itself unstuck — by traversing, vaulting, climbing, or (as a last resort) a short validated sidestep teleport.
 
