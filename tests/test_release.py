@@ -11,12 +11,17 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.4.4"
+VERSION = "2.4.6"
 EXPECTED_LOCAL_IDS = {
     0x800, 0x801, 0x802, 0x803, 0x804, 0x805, 0x806, 0x807,
     0x808, 0x809, 0x80A, 0x80B, 0x80C, 0x80D, 0x80E, 0x80F,
     0x810, 0x811, 0x812,
 }
+
+
+def read_text(path: Path) -> str:
+    """Read project text files as UTF-8 so CI is locale-independent on Windows."""
+    return path.read_text(encoding="utf-8")
 
 
 def read_subrecord(data: bytes, offset: int) -> tuple[bytes, bytes, int]:
@@ -39,13 +44,13 @@ class ReleaseTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_version_metadata_is_synchronized(self) -> None:
-        self.assertIn("VERSION 2.4.4", (ROOT / "CMakeLists.txt").read_text())
-        self.assertEqual(json.loads((ROOT / "vcpkg.json").read_text())["version-semver"], VERSION)
-        version_header = (ROOT / "src/version.h").read_text()
-        self.assertIn('String = "2.4.4"', version_header)
-        self.assertIn('(static_cast<std::uint32_t>(Major) << 24)', version_header)
-        self.assertTrue((ROOT / "README.md").read_text().startswith("# NPC Pathing NG v2.4.4"))
-        self.assertTrue((ROOT / "package/README.md").read_text().startswith("# NPC Pathing NG v2.4.4"))
+        self.assertIn(f"VERSION {VERSION}", read_text(ROOT / "CMakeLists.txt"))
+        self.assertEqual(json.loads(read_text(ROOT / "vcpkg.json"))["version-semver"], VERSION)
+        version_header = read_text(ROOT / "src/version.h")
+        self.assertIn(f'String = "{VERSION}"', version_header)
+        self.assertIn("(static_cast<std::uint32_t>(Major) << 24)", version_header)
+        self.assertTrue(read_text(ROOT / "README.md").startswith(f"# NPC Pathing NG v{VERSION}"))
+        self.assertTrue(read_text(ROOT / "package/README.md").startswith(f"# NPC Pathing NG v{VERSION}"))
 
     def test_esp_header_and_form_ids(self) -> None:
         self.assertEqual(self.data[:4], b"TES4")
@@ -79,7 +84,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(struct.unpack("<I", seq.read_bytes())[0], 0x01000810)
 
     def test_mcm_global_references_exist(self) -> None:
-        config = json.loads((ROOT / "package/Data/MCM/Config/NPCPathingNG/config.json").read_text())
+        config = json.loads(read_text(ROOT / "package/Data/MCM/Config/NPCPathingNG/config.json"))
         refs: set[int] = set()
         for page in config["pages"]:
             for item in page.get("content", []):
@@ -91,8 +96,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotIn(0x810, refs, "The quest is not a GlobalValue")
 
     def test_regressions_are_guarded_in_source(self) -> None:
-        pathing = (ROOT / "src/pathing.cpp").read_text()
-        parkour = (ROOT / "src/npc_parkour.cpp").read_text()
+        pathing = read_text(ROOT / "src/pathing.cpp")
+        parkour = read_text(ROOT / "src/npc_parkour.cpp")
         self.assertIn("CancelParkourJobs(true)", pathing)
         self.assertIn("(settings->enableParkour || settings->enableEvgTraversal)", pathing)
         self.assertIn("(isEvg && !settings->enableEvgTraversal)", pathing)
@@ -118,7 +123,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue({"SKSEPlugin_Load", "SKSEPlugin_Query", "SKSEPlugin_Version"}.issubset(module.read_pe_exports(dll)))
 
     def test_settings_bindings_match_generated_globals(self) -> None:
-        generator = ast.parse((ROOT / "generate_esp.py").read_text())
+        generator = ast.parse(read_text(ROOT / "generate_esp.py"))
         globs = None
         for node in generator.body:
             if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "GLOBS" for t in node.targets):
@@ -126,21 +131,21 @@ class ReleaseTests(unittest.TestCase):
                 break
         self.assertIsNotNone(globs)
         generated_ids = {row[0] for row in globs}
-        settings = (ROOT / "src/settings.cpp").read_text()
+        settings = read_text(ROOT / "src/settings.cpp")
         bound_ids = {int(value, 16) for value in re.findall(r"= lookup\((0x[0-9A-Fa-f]+)\);", settings)}
         self.assertEqual(bound_ids, generated_ids)
 
     def test_build_presets_and_ci_are_portable(self) -> None:
-        presets = json.loads((ROOT / "CMakePresets.json").read_text())
+        presets = json.loads(read_text(ROOT / "CMakePresets.json"))
         configure = presets["configurePresets"][0]
         self.assertEqual(configure["generator"], "Visual Studio 17 2022")
-        workflow = (ROOT / ".github/workflows/build.yml").read_text()
+        workflow = read_text(ROOT / ".github/workflows/build.yml")
         self.assertIn("actions/setup-python@v5", workflow)
         self.assertIn("VCPKG_INSTALLATION_ROOT", workflow)
         self.assertIn("VCPKG_ROOT=$root", workflow)
 
     def test_documented_default_matches_runtime(self) -> None:
-        readme = (ROOT / "README.md").read_text()
+        readme = read_text(ROOT / "README.md")
         self.assertIn("climb height **130**", readme)
         self.assertNotIn("climb height **250** (max)", readme)
 
