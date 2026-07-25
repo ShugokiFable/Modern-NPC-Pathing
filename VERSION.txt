@@ -1,0 +1,16 @@
+NPC Pathing NG 2.4.6
+Parent: 2.4.4 (authoritative known-good; not 2.4.5)
+Date: 2026-07-23
+Agent: Grok Build
+Intent: Package-only fix for double MCM introduced by 2.4.5 NPNG_MCMBridge script swap.
+
+Shipped binary:
+  NPCPathingNG.dll = byte-identical to 2.4.4 (no C++ rebuild)
+  NPCPathingNG.esp = byte-identical to 2.4.4 (MCM_ConfigBase, no NPNG_MCMBridge)
+
+Do not ship:
+  NPNG_MCMBridge.psc / .pex
+  2.4.5 core ESP
+
+Not in this release:
+  Proactive follower catch-up / pathing C++ changes (deferred; requires deliberate DLL work)

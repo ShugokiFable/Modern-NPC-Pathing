@@ -1,0 +1,89 @@
+[size=5][b]Modern NPC Pathing / NPC Pathing NG[/b][/size]
+[size=3]Version [b]2.4.6[/b] · Source: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing]GitHub[/url][/size]
+
+[b]Runtime navmesh failsafe[/b] for humanoid NPCs on Skyrim SE/AE, with [b]optional[/b] SkyParkour vault/climb and follower parkour replay. Stuck NPCs that are actually trying to walk can step around geometry, handle simple doors, vault or climb when SkyParkour is present, and only then use a short validated last-resort teleport.
+
+[size=4][b]What this mod does[/b][/size]
+[list]
+[*]Detects NPCs that are [b]trying to walk[/b] but not moving (idle/sandbox/sit/swim/mount ignored)
+[*]Optional [b]SkyParkour[/b] vault/climb for NPCs (needs SkyParkour V3 + its behavior patch)
+[*][b]Followers[/b] can replay [i]your[/i] recent SkyParkour moves (teammate flag — NFF / vanilla / similar)
+[*][b]Doorway-aware[/b] handling — does not shove NPCs sideways out of chokepoints
+[*][b]Last-resort[/b] sidestep teleport only after repeated stuck cycles against static geometry (disableable)
+[*][b]MCM[/b] via MCM Helper, or INI without it
+[*][b]FOMOD[/b] installer auto-detects SkyParkour and installs a matching INI profile
+[/list]
+
+[size=4][b]What this mod does NOT claim[/b][/size]
+[list]
+[*][b]EVG Animated Traversal is NOT required[/b] and [b]NPC EVG markers do not currently work[/b]. Furniture entry for NPCs is package-driven; marker activation is rejected by the engine. Default is OFF. The FOMOD EVG option is experimental only. Your player-side EVG use is unaffected.
+[*]Not a full AI or pathfinding overhaul
+[*]Default max climb is [b]130[/b] units (steps / vaults / low ledges). Raise toward 250 in MCM if you want higher climbs
+[*]Indoor parkour is [b]off by default[/b]
+[*]Package [b]2.4.6[/b] did [b]not[/b] rebuild the native DLL — it ships the [b]2.4.4[/b] DLL byte-identical (SKSE version string inside the DLL remains 2.4.4). 2.4.6 is the package/ESP/installer fix for the double-MCM bug
+[/list]
+
+[size=4][b]Requirements[/b][/size]
+[b]Required[/b]
+[list]
+[*]Skyrim SE (1.5.97) or AE (1.6.x)
+[*][url=https://skse.silverlock.org/]SKSE64[/url]
+[*][url=https://www.nexusmods.com/skyrimspecialedition/mods/32444]Address Library for SKSE Plugins[/url]
+[/list]
+
+[b]Optional[/b]
+[list]
+[*][url=https://www.nexusmods.com/skyrimspecialedition/mods/132292]SkyParkour V3[/url] + Nemesis/Pandora (or equivalent) behavior patch — parkour + follower replay
+[*]SkyUI + [url=https://www.nexusmods.com/skyrimspecialedition/mods/53000]MCM Helper[/url] — in-game settings
+[/list]
+
+[b]Not required[/b]
+[list]
+[*]EVG Animated Traversal
+[/list]
+
+[i]NPCPathingNG.esp is ESL-flagged.[/i]
+
+[size=4][b]Installation[/b][/size]
+Use a mod manager. Prefer the [b]FOMOD[/b] archive so the installer can pick SkyParkour vs failsafe-only profiles.
+
+[size=4][b]Updating[/b][/size]
+Replace the previous version. FormIDs are unchanged; a clean save is not required for normal updates.
+
+[b]If you installed yanked 2.4.5:[/b]
+[list=1]
+[*]Install 2.4.6
+[*]Remove leftover [font=Courier New]Data/Scripts/NPNG_MCMBridge.pex[/font] if present
+[*]An empty second MCM entry may remain on saves that already loaded 2.4.5 until cleaned or a new game
+[/list]
+
+[size=4][b]Configuration[/b][/size]
+[list]
+[*]MCM: [b]NPC Pathing NG[/b]
+[*]INI fallback: [font=Courier New]Data/SKSE/Plugins/NPCPathingNG.ini[/font]
+[*]Defaults: followers on, combat NPCs on, indoor parkour off, climb 130, EVG off
+[/list]
+
+[size=4][b]Changelog (recent)[/b][/size]
+[b]2.4.6[/b] — Fixed double MCM from 2.4.5; restored 2.4.4 ESP (MCM_ConfigBase); removed NPNG_MCMBridge; DLL unchanged from 2.4.4.
+[b]2.4.5[/b] — [s]Yanked[/s] — do not use.
+[b]2.4.4[/b] — EVG off by default / not required; FOMOD auto-detection.
+[b]2.4.3[/b] — Doorway sidestep fix; EVG NPC failures fail loudly.
+[b]2.4.2[/b] — Post-vault tilt fix; follower replay tuning.
+[b]2.4.1[/b] — Parkour disable safety, toggle isolation, teleport clearance, packaging.
+
+Full history: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing/blob/main/CHANGELOG.md]CHANGELOG.md[/url]
+
+[size=4][b]Logs / troubleshooting[/b][/size]
+[font=Courier New]Documents/My Games/Skyrim Special Edition/SKSE/NPCPathingNG.log[/font]
+
+When reporting issues, include game version, SKSE version, this mod version, whether SkyParkour is installed, and a log excerpt.
+
+[size=4][b]Permissions[/b][/size]
+Open source under GPLv3. See the GitHub repository for source and license. Optional dependencies (SkyParkour, EVG, MCM Helper, SkyUI) belong to their respective authors and are not re-shipped here.
+
+[size=4][b]Credits[/b][/size]
+[list]
+[*]SKSE / Address Library / CommonLibSSE-NG ecosystem
+[*]SkyParkour, EVG Animated Traversal, MCM Helper, SkyUI — optional integrations only
+[/list]

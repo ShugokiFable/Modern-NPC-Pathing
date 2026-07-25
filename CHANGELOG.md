@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.4.6 - 2026-07-23
+
+### Fixed
+
+- **Double MCM menu after 2.4.5.** Version 2.4.5 swapped the MCM quest script from stock `MCM_ConfigBase` to a custom `NPNG_MCMBridge` on the same FormID. Papyrus script instances persist inside saves, so the old empty menu stayed registered next to the new one — and uninstalling older files could not clear it because it was baked into the save. **2.4.6 restores the 2.4.4 ESP** (`MCM_ConfigBase` only) and does **not** ship `NPNG_MCMBridge`.
+- **Native binary unchanged.** The 2.4.4 `NPCPathingNG.dll` is shipped as-is (byte-identical). This is a package/ESP fix only.
+
+### Removed
+
+- `NPNG_MCMBridge.psc` / `.pex` and the 2.4.5 MCM-persistence bridge approach. MCM Helper already persists changed values under `Data/MCM/Settings/` when you use the MCM; the bridge was unnecessary and caused the dual-menu registration.
+
+### Notes for players who already loaded 2.4.5
+
+1. Install **2.4.6** (or reinstall 2.4.4) so the ESP again uses `MCM_ConfigBase`.
+2. Remove any leftover `Data/Scripts/NPNG_MCMBridge.pex` if a manager left it behind.
+3. The empty duplicate menu may still appear on **existing saves** until that orphaned script instance is gone. Use the working (lower or non-empty) menu, or clean the orphan with a save editor / start a new game. New games only see one menu.
+
+## 2.4.5 - 2026-07-22 (YANKED)
+
+### Yanked — do not use
+
+- Attempted MCM-outside-save persistence by attaching `NPNG_MCMBridge` to the existing MCM quest. Causes **two** MCM entries on any save that previously registered `MCM_ConfigBase` (empty page + working page). Replaced by 2.4.6.
+
 ## 2.4.4 - 2026-07-21
 
 ### Changed

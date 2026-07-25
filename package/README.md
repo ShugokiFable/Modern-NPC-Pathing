@@ -1,58 +1,37 @@
-# NPC Pathing NG v2.4.4
+# NPC Pathing NG v2.4.6
 
-NPCs finally move like they belong in your modded world. A runtime navmesh failsafe **plus full NPC SkyParkour and NPC EVG Animated Traversal**: followers retrace your climbing route instead of teleporting to you, guards and enemies climb after you when you kite them onto a rock, NPCs use EVG traversal points (ladders, squeezes, ledges) with real animations instead of the teleport the original framework falls back to, and any humanoid NPC that walks into broken navmesh gets itself unstuck — by traversing, vaulting, climbing, or (as a last resort) a short validated sidestep teleport.
+Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with optional SkyParkour vault/climb and follower parkour replay.
 
-## Features
+## Does
 
-**Follower parkour (Nether's Follower Framework compatible)**
-When *you* vault or climb with SkyParkour, the mod records the spot and direction. A follower reaching that spot while you're above them performs the **same move** — they physically retrace your route up the mountain instead of pathing around or warp-teleporting behind you. Detected via the teammate flag, so NFF, vanilla, and any other follower framework all work. Followers also react to being stuck twice as fast as regular NPCs.
+- Unsticks humanoids that are trying to walk but not moving
+- Optional SkyParkour vault/climb + follower replay of your parkour
+- Doorway-aware handling (does not shove NPCs out of chokepoints)
+- Validated last-resort sidestep teleport (can be disabled)
+- MCM (MCM Helper) or INI fallback
 
-**Combat pursuit**
-NPCs in combat are processed by default. A guard chasing your bounty up a rocky hill will climb the same ledges you did (stuck detection kicks in within ~half a second of them running into the rock face). Same for bandits, draugr-free humanoid foes, etc. If it misbehaves in your setup, one MCM toggle turns it off.
+## Does not
 
-**Climbing that stays grounded**
-Default max climb height is **130 units** — steps, vaults, and low/chest-height ledges only. NPCs get over the obstacles that actually break navmesh without scaling walls, houses, or mountainsides. (This is intentionally lower than the player's own SkyParkour range of 250; raise the MCM/INI value toward 250 if you want NPCs climbing full cliffs too.) Indoors, parkour is **off by default**; the teleport fallback still quietly fixes stuck NPCs inside.
-
-**Teleport is a genuine last resort**
-The sidestep teleport only fires when an NPC is wedged against real *static* geometry (not the player's body, not another actor, not an AI/dialogue hold) **and** has failed to escape via parkour/EVG several times running. Enemies pressing into you mid-fight, and NPCs held still during conversation, are never teleported. Tune how last-resort it is with the Teleport Last-Resort Threshold, or turn teleporting off entirely.
-
-**NPCs use EVG Animated Traversal — with animations, not teleports**
-EVG AT's traversal points are furniture markers whose use-animation OAR-swaps into the traversal move — which means NPCs can use them natively; the framework just never wired them up (its NPC handling is literally commented out, so patch mods teleport NPCs instead). This mod does the wiring: a stuck NPC near a marker that points the right way is sent through it — climbing the ladder, squeezing the crack, vaulting the ledge, animation and all. And when *you* use an EVG point, your followers use the **same marker** behind you. Works with every EVG patch collection automatically (detection is by marker furniture base, not by location). Fully optional — auto-disables if EVG AT isn't installed.
-
-**Stuck detection that can't misfire on idle NPCs**
-An NPC only counts as stuck when its animation graph is *trying to walk* but its body isn't moving. Idle guards, sandboxing citizens, sitting/sleeping/ragdolled/swimming/mounted NPCs are never touched.
-
-**MCM (via MCM Helper)**
-All settings live in an in-game MCM — three pages: General, Parkour, Followers & Combat. Settings are stored in ESP globals, so **every change applies instantly**, mid-game, no reload. Without MCM Helper the mod falls back to the INI (re-read every time you close the journal, so INI edits also apply without restarting).
+- **EVG is not required.** NPC EVG marker use does **not** currently work (engine furniture/package limit). Default off; experimental FOMOD option only.
+- Not a full AI or pathfinding rewrite
+- Default max climb is **130** units (not full cliffs unless you raise it)
+- Package **2.4.6** ships the **2.4.4** native DLL unchanged (embedded DLL version remains `2.4.4`)
 
 ## Requirements
 
-- Skyrim SE (1.5.97) or AE (1.6.x) — version independent via Address Library
-- SKSE64
-- **For parkour:** [SkyParkour V3](https://www.nexusmods.com/skyrimspecialedition/mods/132292) + its Nemesis/Pandora patch (the patch also covers NPC behavior graphs — detected per-actor at runtime)
-- **For marker traversal:** [EVG Animated Traversal](https://www.nexusmods.com/skyrimspecialedition/mods/63232) + any patch collections that place its markers
-- **For MCM:** SkyUI + MCM Helper (optional — INI works without them)
-- `NPCPathingNG.esp` is ESL-flagged (no load order slot cost)
+- SKSE64 + Address Library
+- Optional: SkyParkour V3 + behavior patch; SkyUI + MCM Helper
+- Not required: EVG Animated Traversal
 
-## How the parkour works technically
+## Config
 
-SkyParkour's behavior patch modifies the shared humanoid graphs (`0_master`, `defaultmale/female`), so every humanoid NPC already has the animations — only SkyParkour's own plugin is player-locked. This mod drives the same graph for NPCs: same trigger variables, same char-controller physics handling during the move, same start-position alignment so the root motion lands the NPC exactly on the ledge, and the same safety rules (headroom, ledge flatness, landing space for vaults, never onto actors/doors, never into water). Interrupts, ragdolls, deaths and stuck animations all have failsafe cleanup.
+- MCM: **NPC Pathing NG**
+- INI: `Data/SKSE/Plugins/NPCPathingNG.ini`
 
-## Configuration
+## 2.4.6
 
-MCM: **NPC Pathing NG** in the mod configuration list. INI fallback: `Data/SKSE/Plugins/NPCPathingNG.ini`.
-
-Notable defaults: followers **included**, combat **included**, indoor parkour **disabled**, climb height **130** (steps, vaults, and low/chest ledges).
-
-## 2.4.1 stability update
-
-- Safely cancels and cleans up active NPC parkour when the mod is disabled mid-animation.
-- Keeps SkyParkour and EVG follower replay independent, respecting both MCM toggles and discarding stale disabled-integration events.
-- Clears stale lower-body animation state between parkour moves.
-- Avoids sending a forced interrupt after a naturally completed animation.
-- Resets teleport escalation after a successful bypass and validates the body-width travel corridor and full destination clearance.
-- Corrects ESP header metadata, version metadata, defaults documentation, and release packaging.
+Restores the 2.4.4 ESP (`MCM_ConfigBase`) after yanked 2.4.5 dual-MCM issue. No `NPNG_MCMBridge` scripts. If you loaded 2.4.5, remove leftover `NPNG_MCMBridge.pex`; orphan empty menu may linger on that save.
 
 ## Logs
 
-`Documents/My Games/Skyrim Special Edition/SKSE/NPCPathingNG.log` (set Debug Logging ON to see every event)
+`Documents/My Games/Skyrim Special Edition/SKSE/NPCPathingNG.log`
