@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.6
+# NPC Pathing NG v2.4.8
 
 Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyParkour vault/climb and follower parkour replay. Stuck NPCs can step around geometry, open simple doors, vault or climb when SkyParkour is installed, and only then fall back to a short validated sidestep teleport.
 
@@ -21,7 +21,25 @@ Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyPa
 - **Not a full AI overhaul.** It unstucks and optionally parkours; it does not rewrite pathfinding or combat AI.
 - **Default climb height is 130 units** (steps, vaults, low/chest ledges) - not full mountain climbing. Raise toward 250 in MCM/INI if you want higher climbs.
 - **Indoor parkour is off by default.** Teleport fallback can still clear stuck NPCs indoors.
-- **Package 2.4.6 ships the 2.4.4 native DLL unchanged** (byte-identical). The DLL's embedded SKSE version string is still `2.4.4`; 2.4.6 is a package/ESP/installer release (double-MCM fix). A future DLL rebuild will bump the embedded version.
+- **2.4.8 is the first genuine native rebuild since 2.4.4.** Versions 2.4.5, 2.4.6 and 2.4.7 all shipped the
+  identical 2.4.4 DLL (SHA256 `9e5616e0...`), so any behaviour difference reported between those three
+  releases was not native code. The 2.4.8 DLL embeds version `2.4.8`.
+
+## What changed in 2.4.8
+
+- **Fixed:** NPCs vaulted onto barrels, urns and crates and were left stranded on top of them.
+  The landing-surface filter only rejected NPCs, doors and activators; `Container`,
+  `MovableStatic`, `Flora` and `Tree` are now rejected too.
+- **Fixed:** INI edits and the FOMOD preset were silently ignored whenever the ESP was active,
+  because settings were copied out of the plugin's globals every frame. The INI now *seeds*
+  the MCM at `kDataLoaded` (which runs before a save loads), so a new game or fresh install
+  starts from your INI/FOMOD preset, while loading an existing save still restores that
+  save's own MCM values. MCM changes still apply instantly.
+- **Changed:** `iTeleportEscalation` default raised 3 -> 5; teleports were firing more often
+  than the animated traversal they exist to back up.
+- **Note:** the `NPCPathingNG.esp` header author field changed, so the plugin hash differs from
+  2.4.4-2.4.7. Only the TES4 header changed - no record, FormID or master - so **no save
+  cleaning is needed**.
 
 ## Features (accurate)
 
@@ -73,13 +91,13 @@ Auto-detects SkyParkour / EVG presence and pre-selects a matching INI profile. E
 
 ## Recent versions
 
-### 2.4.6 (2026-07-23) - current package
+### 2.4.8 (2026-07-23) - current package
 
 - Fixes **double MCM** introduced by yanked **2.4.5** (`NPNG_MCMBridge`).
 - Restores **2.4.4 ESP** (`MCM_ConfigBase` only). Does **not** ship the bridge scripts.
 - **DLL unchanged** from 2.4.4 (no native rebuild).
 
-If you already loaded 2.4.5: install 2.4.6, remove leftover `Data/Scripts/NPNG_MCMBridge.pex` if present. An empty orphan menu may remain on that save until cleaned or a new game is started.
+If you already loaded 2.4.5: install 2.4.8, remove leftover `Data/Scripts/NPNG_MCMBridge.pex` if present. An empty orphan menu may remain on that save until cleaned or a new game is started.
 
 ### 2.4.5 - yanked
 

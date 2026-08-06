@@ -64,6 +64,10 @@ namespace
             // and install the frame hook.
             Settings::GetSingleton()->Load();
             Settings::GetSingleton()->BindGlobals();
+            // kDataLoaded runs before any save is deserialized, so this makes the
+            // INI / FOMOD preset the starting MCM state on a new game or fresh
+            // install without clobbering an existing save's saved settings.
+            Settings::GetSingleton()->PushToGlobals();
             EvgTraversal::CacheForms();
             PathingManager::Install();
             MenuListener::Register();
@@ -86,7 +90,9 @@ extern "C" __declspec(dllexport) constinit auto SKSEPlugin_Version = []() noexce
     SKSE::PluginVersionData v;
     v.PluginName("NPCPathingNG");
     v.PluginVersion(REL::Version{ PluginVersion::Major, PluginVersion::Minor, PluginVersion::Patch });
-    v.AuthorName("karlo");
+    // Public author name only — never the local Windows account name, which
+    // ends up as a plain string inside the shipped DLL.
+    v.AuthorName("GennyWoo");
     v.UsesAddressLibrary(true);
     v.UsesStructsPost629(true);
     return v;

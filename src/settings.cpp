@@ -70,9 +70,10 @@ namespace
             spdlog::warn("NPCPathingNG: could not create default INI at {}", INI_PATH);
             return;
         }
-        f << "; NPC Pathing NG — fallback settings.\n"
-             "; If NPCPathingNG.esp is enabled and you have MCM Helper, use the in-game\n"
-             "; MCM instead — MCM values override this file and apply instantly.\n"
+        f << "; NPC Pathing NG — settings.\n"
+             "; This file seeds the MCM on a new game or fresh install. Loading an\n"
+             "; existing save restores that save's MCM values over the top, so use the\n"
+             "; in-game MCM to change a playthrough already in progress.\n"
              "\n"
              "[General]\n"
              "bEnabled=1\n"
@@ -114,7 +115,7 @@ namespace
              "fSnapDistance=100.0\n"
              "; How many times an NPC must trigger stuck (with no parkour/EVG escape) before a\n"
              "; teleport is allowed. Higher = teleport is rarer and more of a true last resort.\n"
-             "iTeleportEscalation=3\n"
+             "iTeleportEscalation=5\n"
              "\n"
              "[Filters]\n"
              "; 0 = NPCs in combat ARE processed (guards/foes climb after you)\n"
@@ -215,10 +216,52 @@ void Settings::BindGlobals()
 
     if (gEnabled) {
         spdlog::info("NPCPathingNG: {} found — settings driven by MCM globals", PLUGIN_FILE);
-        Refresh();
+        // Deliberately NOT Refresh() here. At this point the globals still hold
+        // the ESP's compiled-in defaults, so copying them into members would
+        // discard everything Load() just read from the INI. PushToGlobals()
+        // seeds the other way instead; see settings.h.
     } else {
         spdlog::info("NPCPathingNG: {} not present — using INI settings", PLUGIN_FILE);
     }
+}
+
+void Settings::PushToGlobals()
+{
+    if (!gEnabled) {
+        return;  // no ESP — members already hold the INI values
+    }
+
+    auto setBool = [](RE::TESGlobal* g, bool v) {
+        if (g) { g->value = v ? 1.0f : 0.0f; }
+    };
+    auto setNum = [](RE::TESGlobal* g, float v) {
+        if (g) { g->value = v; }
+    };
+
+    setBool(gEnabled, enabled);
+    setNum(gCheckInterval, checkInterval);
+    setNum(gStuckThreshold, static_cast<float>(stuckThreshold));
+    setNum(gStuckDistance, stuckDistance);
+    setNum(gCooldown, cooldown);
+    setNum(gActorsPerFrame, static_cast<float>(actorsPerFrame));
+
+    setBool(gEnableParkour, enableParkour);
+    setNum(gIndoorMode, static_cast<float>(parkourIndoorMode));
+    setNum(gMaxClimbHeight, maxClimbHeight);
+
+    setBool(gTeleportFallback, enableTeleportFallback);
+    setNum(gSnapDistance, snapDistance);
+    setNum(gTeleportEscalation, static_cast<float>(teleportEscalation));
+
+    setBool(gExcludeInCombat, excludeInCombat);
+    setBool(gExcludeFollowers, excludeFollowers);
+    setBool(gExcludeMounted, excludeMounted);
+
+    setBool(gFollowerReplay, followerReplay);
+    setBool(gDebugLogging, debugLogging);
+    setBool(gEvgTraversal, enableEvgTraversal);
+
+    spdlog::info("NPCPathingNG: seeded MCM globals from INI — a loaded save overrides these");
 }
 
 void Settings::Refresh()

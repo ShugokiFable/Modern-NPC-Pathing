@@ -1,3 +1,56 @@
+## 2.4.8 (2026-08-06)
+
+First genuine native rebuild since 2.4.4. Versions 2.4.5, 2.4.6 and 2.4.7 all
+shipped the identical 2.4.4 DLL (SHA256 `9e5616e0...`); 2.4.8 ships a new binary
+(SHA256 `f0fe793b...`).
+
+### Fixed
+
+- **NPCs vaulted onto barrels and crates and got stranded on top.** The landing
+  surface filter only rejected NPCs, doors and activators. Barrels and urns are
+  `Container` records and crates/physics props are `MovableStatic`, so both were
+  treated as valid ledges — an NPC would climb one and then be stuck on an
+  unnavmeshed prop. `Container`, `MovableStatic`, `Flora` and `Tree` are now
+  rejected as landing surfaces.
+- **INI edits and the FOMOD preset were silently ignored whenever the ESP was
+  active.** Settings were copied out of the plugin's globals into memory every
+  single frame, which overwrote everything read from the INI — including the
+  preset chosen in the installer. The INI now *seeds* the MCM at `kDataLoaded`,
+  which runs before a save is deserialized, so:
+  - a new game or fresh install starts with your INI / FOMOD preset;
+  - loading an existing save still restores that save's own MCM values;
+  - MCM changes still apply instantly and persist.
+
+### Changed
+
+- `iTeleportEscalation` default raised **3 -> 5**. Teleports were firing more
+  often than the animated traversal they exist to back up. Set
+  `bEnableTeleportFallback=0` to disable teleporting entirely.
+- INI header and README now document the actual settings precedence, and the
+  `fMaxClimbHeight` default is documented as **130** everywhere (the Nexus
+  description previously claimed 250). 130 = steps, vaults and low/chest ledges.
+  Raise toward 250 for full cliff and mountain climbing.
+
+### Privacy
+
+- The author field was the local Windows account name and shipped as a plain
+  readable string inside **both** `NPCPathingNG.dll` and the `NPCPathingNG.esp`
+  header (visible in any mod manager and in xEdit). Both now read **GennyWoo**.
+- Scanned every shipped file: no account name, e-mail address or machine name
+  remains in the release.
+
+### Note on the plugin hash
+
+- `NPCPathingNG.esp` had been byte-identical from 2.4.4 through 2.4.7
+  (`02256817...`). The author-name fix changes it to `9dc50ac1...` (1504 bytes).
+  Only the TES4 header `CNAM` differs - no record, FormID or master changed, so
+  **no save cleaning is needed** and existing playthroughs are unaffected.
+
+## 2.4.7 (2026-07-25)
+
+- Metadata-only packaging bump.
+- FOMOD Author set to **GennyWoo**.
+- DLL/ESP unchanged vs 2.4.6 (still the 2.4.4 binary line).
 # Changelog
 
 ## 2.4.6 - 2026-07-23

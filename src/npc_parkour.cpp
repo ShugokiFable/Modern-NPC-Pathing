@@ -66,6 +66,16 @@ namespace
         case RE::FormType::Door:
         case RE::FormType::Activator:
             return true;
+        // Clutter is never a valid landing surface. Barrels and urns are
+        // Containers, crates and physics props are MovableStatics: an NPC that
+        // vaults onto one is left standing on an unnavmeshed prop it can't path
+        // off, or gets shoved around by havok. Reported as "NPCs vault random
+        // barrels and just stand on top of them".
+        case RE::FormType::Container:
+        case RE::FormType::MovableStatic:
+        case RE::FormType::Flora:
+        case RE::FormType::Tree:
+            return true;
         default:
             return false;
         }

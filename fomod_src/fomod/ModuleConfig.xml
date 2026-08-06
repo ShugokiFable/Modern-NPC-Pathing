@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
-  <moduleName>NPC Pathing NG 2.4.6</moduleName>
+  <moduleName>NPC Pathing NG 2.4.8</moduleName>
 
   <!-- Core plugin, ESP, SEQ and MCM config are always installed.
        The only hard requirements are SKSE and Address Library, neither of
@@ -118,7 +118,7 @@ Pick this if you do not use SkyParkour. Nothing else is required.</description>
           <flagDependency flag="NPNG_CONFIG" value="evg"/>
         </dependencies>
         <files>
-          <folder source="ini_evg" destination="" priority="1"/>
+          <folder source="ini_evg" destination="" priority="2"/>
         </files>
       </pattern>
       <pattern>
@@ -126,7 +126,7 @@ Pick this if you do not use SkyParkour. Nothing else is required.</description>
           <flagDependency flag="NPNG_CONFIG" value="failsafe"/>
         </dependencies>
         <files>
-          <folder source="ini_failsafe" destination="" priority="1"/>
+          <folder source="ini_failsafe" destination="" priority="3"/>
         </files>
       </pattern>
     </patterns>

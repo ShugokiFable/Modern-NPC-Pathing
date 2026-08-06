@@ -18,4 +18,4 @@ Without SkyParkour installed this build behaves identically to the original.
 
 - **TheShinyHaxorus** - original StepUpOnto SKSE: all step-up design and implementation. This is their work with a two-function compatibility guard added, released under the mod page's open modification permissions with credit.
 - SkyParkour V3 by Waffuru (the graph variable this build checks).
-- Compatibility patch by karlo (NPC Pathing NG).
+- Compatibility patch by GennyWoo (NPC Pathing NG).

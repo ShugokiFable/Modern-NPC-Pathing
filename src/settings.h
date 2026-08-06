@@ -17,6 +17,16 @@ public:
     /// Bind to NPCPathingNG.esp globals (MCM Helper edits those). Call at kDataLoaded.
     void BindGlobals();
 
+    /// Seed the bound globals from the INI values currently held in members.
+    ///
+    /// Called once at kDataLoaded, which runs BEFORE a save is deserialized.
+    /// That ordering is the whole point: on a new game or a fresh install the
+    /// INI (and therefore the FOMOD preset the user picked) becomes the starting
+    /// MCM state, while loading an existing save still restores that save's own
+    /// global values straight over the top. Without this the INI was inert for
+    /// anyone running the ESP — Refresh() overwrote it every frame.
+    void PushToGlobals();
+
     /// Copy bound global values into members — cheap, called every frame so
     /// MCM changes apply instantly. No-op when the ESP isn't present.
     void Refresh();
@@ -40,7 +50,7 @@ public:
     // [Avoidance]
     bool  enableTeleportFallback = true;
     float snapDistance = 100.0f;
-    int   teleportEscalation = 3;  // consecutive stuck triggers with no parkour/EVG escape before
+    int   teleportEscalation = 5;  // consecutive stuck triggers with no parkour/EVG escape before
                                    // teleport is allowed. Higher = teleport is rarer / more last-resort.
 
     // [Followers]

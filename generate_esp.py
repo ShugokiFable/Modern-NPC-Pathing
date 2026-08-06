@@ -93,7 +93,7 @@ def generate(esp_path):
 
     num_records = len(r_glob) + len(r_qust)
     tes4_data = (sub('HEDR', struct.pack('<fII', 1.71, num_records, NEXT_OBJECT_ID))
-                 + sub('CNAM', zstr('karlo'))
+                 + sub('CNAM', zstr('GennyWoo'))  # public author name, not the local account
                  + sub('SNAM', zstr('NPC Pathing NG - navmesh failsafe + NPC SkyParkour'))
                  + sub('MAST', zstr('Skyrim.esm'))
                  + sub('DATA', struct.pack('<Q', 0)))

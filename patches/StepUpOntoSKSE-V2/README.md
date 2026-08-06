@@ -58,6 +58,6 @@ cmake --build build --config Release
 
 - **TheShinyHaxorus** - original StepUpOnto SKSE
 - SkyParkour V3 by Waffuru (graph variable checked)
-- Compatibility patch by karlo (NPC Pathing NG)
+- Compatibility patch by GennyWoo (NPC Pathing NG)
 
 Released under the original mod page permissions (modification with credit).

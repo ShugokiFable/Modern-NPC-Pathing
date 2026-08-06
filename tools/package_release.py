@@ -118,12 +118,14 @@ def validate_pe_x64(path: Path, version: str) -> None:
         raise RuntimeError(f"{path} does not embed release version {version}")
 
 
-def validate_tree(version: str) -> list[Path]:
+def validate_tree(version: str, dll_version: str | None = None) -> list[Path]:
     missing = [str(path) for path in REQUIRED_FILES if not (PACKAGE / path).is_file()]
     if missing:
         raise RuntimeError("Missing release files: " + ", ".join(missing))
 
-    validate_pe_x64(PACKAGE / "Data/SKSE/Plugins/NPCPathingNG.dll", version)
+    # Package-only releases may ship an older, unmodified DLL (e.g. 2.4.6 ESP fix
+    # reusing the 2.4.4 binary). Check the embedded string the DLL actually has.
+    validate_pe_x64(PACKAGE / "Data/SKSE/Plugins/NPCPathingNG.dll", dll_version or version)
 
     files: list[Path] = []
     for path in sorted(PACKAGE.rglob("*")):
@@ -164,13 +166,23 @@ def sha256(path: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-generate", action="store_true", help="Do not regenerate the ESP/SEQ")
+    parser.add_argument(
+        "--dll-version",
+        default=None,
+        help="Version string embedded in the shipped DLL when it differs from package version "
+        "(package-only releases that reuse an older binary).",
+    )
     args = parser.parse_args()
 
     version = read_version()
     if not args.skip_generate:
         generate_plugin()
-    shutil.copy2(ROOT / "README.md", PACKAGE / "README.md")
-    files = validate_tree(version)
+    # Prefer package/README.md when present (release notes); fall back to repo root.
+    package_readme = PACKAGE / "README.md"
+    root_readme = ROOT / "README.md"
+    if root_readme.is_file() and not package_readme.is_file():
+        shutil.copy2(root_readme, package_readme)
+    files = validate_tree(version, dll_version=args.dll_version)
     output = write_zip(version, files)
     digest = sha256(output)
     (DIST / "SHA256SUMS.txt").write_text(f"{digest}  {output.name}\n", encoding="utf-8")
