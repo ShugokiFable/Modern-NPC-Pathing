@@ -144,13 +144,38 @@ bool PathingManager::IsTeammate(RE::Actor* a_actor) const
     if (a_actor->IsPlayerTeammate()) {
         return true;
     }
+    // Resolved once. LookupByID hits the global form table, and this used to run
+    // for every scanned actor on every check interval — in a city that is the
+    // whole round-robin slice, four times a second, forever.
+    //
     // Type-checked via Is() + static_cast, not LookupByID<TESFaction>: this
     // CommonLib build doesn't instantiate As<TESFaction>, so the templated
     // lookup fails to link (LNK2019).
-    auto* form = RE::TESForm::LookupByID(0x0005C84E);  // CurrentFollowerFaction
-    auto* followerFaction =
-        (form && form->Is(RE::FormType::Faction)) ? static_cast<RE::TESFaction*>(form) : nullptr;
+    static RE::TESFaction* followerFaction = [] {
+        auto* form = RE::TESForm::LookupByID(0x0005C84E);  // CurrentFollowerFaction
+        return (form && form->Is(RE::FormType::Faction)) ? static_cast<RE::TESFaction*>(form)
+                                                         : nullptr;
+    }();
     return followerFaction && a_actor->IsInFaction(followerFaction);
+}
+
+// Cheap pre-classification for Unstick: is the thing directly ahead another
+// actor? In a crowded city this is the dominant "stuck" case — NPCs wedging
+// each other in markets and doorways. None of the unstick methods can help:
+// parkour rejects actors as landing surfaces (FormExcluded) so its ~15-iteration
+// ledge sweep is guaranteed to find nothing, and the teleport already refuses
+// via IsGenuinelyWallStuck. Two rays here replace that whole sweep per jammed NPC.
+bool PathingManager::BlockedByActor(RE::Actor* a_actor) const
+{
+    const RE::NiPoint3 pos = a_actor->GetPosition();
+    const RE::NiPoint3 fwd = ForwardVector(a_actor);
+    for (float h : { 20.0f, 70.0f }) {  // knee and chest
+        const auto hit = Raycast::Cast(a_actor, pos + RE::NiPoint3(0.0f, 0.0f, h), fwd, 60.0f);
+        if (hit.didHit && IsActorHit(hit)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // The single gate that separates a real navmesh wedge from every false
@@ -564,6 +589,14 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
     (void)a_teammate;
     auto* settings = Settings::GetSingleton();
 
+    // 0) Crowd jam: another actor is directly ahead. Nothing below can resolve
+    //    that — you cannot vault, climb or sidestep through a person — and the
+    //    crowd moves on by itself. Bail before the expensive ledge sweep; this
+    //    is the single most common stuck cause in a busy city.
+    if (BlockedByActor(a_actor)) {
+        return;
+    }
+
     // 1) Animated traversal is always the goal — try it first, every time.
     //    EVG markers are hand-placed where pathing breaks; parkour self-gates
     //    on real ledge geometry, so it can't fire in open space.
@@ -614,7 +647,16 @@ bool PathingManager::TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, co
     }
 
     auto* marker = EvgTraversal::FindMarkerNear(a_actor, a_fwd, 250.0f);
-    if (!marker || !EvgTraversal::Use(a_actor, marker)) {
+    if (!marker) {
+        // A scan that finds nothing must count toward the self-disable latch too.
+        // Previously only a FAILED ActivateRef did, and ActivateRef is only ever
+        // reached when a marker was found — so anywhere without EVG markers (i.e.
+        // every city) the latch never tripped and every stuck NPC kept re-scanning
+        // the cell grid for the whole session.
+        EvgTraversal::NoteFruitlessScan();
+        return false;
+    }
+    if (!EvgTraversal::Use(a_actor, marker)) {
         return false;
     }
 

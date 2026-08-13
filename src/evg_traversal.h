@@ -37,6 +37,12 @@ namespace EvgTraversal
     /// the session once activation has failed repeatedly (see header note).
     bool IsNpcUseSupported();
 
+    /// Record a marker scan that found nothing. Counts toward the same
+    /// self-disable latch as a rejected activation, so the (engine-limited,
+    /// non-functional for NPCs) EVG path stops scanning the cell grid instead
+    /// of retrying forever in areas that simply have no markers.
+    void NoteFruitlessScan();
+
     /// Drop the session's NPC-unsupported latch (called on save load / new game).
     void ResetNpcUseState();
 

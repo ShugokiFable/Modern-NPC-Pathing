@@ -1,3 +1,34 @@
+## 2.4.9 (2026-08-13)
+
+Performance release. Everything here is a cost reduction - no behaviour was
+intentionally changed, and no setting needs adjusting after updating.
+
+### Fixed - city frame rate
+
+- **Crowd jams ran the full ledge sweep.** The most common "stuck" cause in a busy
+  city is one NPC wedged behind another. `Unstick` went straight into the parkour
+  ledge detection, ~15 raycast iterations, for every one of them - and it could never
+  succeed, because actors are already rejected as landing surfaces. Two rays now
+  classify the blocker first and bail immediately when it is another actor.
+- **EVG marker scan searched the entire cell grid.** The search radius is 250 units,
+  but the scan called `ForEachReferenceInRange` on *all* attached cells (25 at
+  `uGridsToLoad=5`), and each of those iterates every reference in the cell -
+  thousands of them in a dense city. Cells whose bounds fall outside the radius are
+  now rejected up front, leaving at most the actor's own cell and its neighbours.
+- **The EVG self-disable latch could never trip in a city.** It only counted rejected
+  activations, and an activation is only attempted once a marker has been found. In an
+  area with no EVG markers - which is every city - the scan found nothing, so the
+  counter never moved and every stuck NPC kept re-scanning for the whole session. A
+  fruitless scan now counts toward the same latch: the path switches itself off after
+  3 and re-arms on the next game load.
+- **Follower-faction lookup ran per actor, per check.** `IsTeammate` called
+  `LookupByID` into the global form table for every scanned NPC four times a second.
+  Resolved once and cached.
+
+The two EVG items only affected setups with `bEnableEVGTraversal=1`. That option stays
+**off by default**: EVG NPC traversal still cannot work, because furniture entry for an
+NPC is driven by the AI package system and activation is rejected by the engine.
+
 ## 2.4.8 (2026-08-06)
 
 First genuine native rebuild since 2.4.4. Versions 2.4.5, 2.4.6 and 2.4.7 all

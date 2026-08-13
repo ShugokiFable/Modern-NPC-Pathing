@@ -8,6 +8,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <unordered_set>
@@ -90,6 +91,17 @@ namespace EvgTraversal
         g_npcUseSupported = true;
     }
 
+    void NoteFruitlessScan()
+    {
+        if (g_npcUseSupported && ++g_npcFailures >= kNpcFailureLimit) {
+            g_npcUseSupported = false;
+            spdlog::info(
+                "NPCPathingNG: EVG NPC traversal disabled for this session — {} marker scans "
+                "found nothing nearby. Re-armed on the next game load.",
+                g_npcFailures);
+        }
+    }
+
     bool IsTraversalFurniture(const RE::TESBoundObject* a_base)
     {
         return a_base && g_resolvedIDs.contains(a_base->GetFormID());
@@ -156,12 +168,32 @@ namespace EvgTraversal
         if (tes->interiorCell) {
             tes->interiorCell->ForEachReferenceInRange(pos, a_radius, visit);
         } else if (auto* grid = tes->gridCells; grid && grid->length > 0) {
+            // A 250-unit radius cannot reach past the actor's own cell and its
+            // immediate neighbours, but this used to call ForEachReferenceInRange
+            // on ALL attached cells in the grid (25 at uGridsToLoad=5). Each of
+            // those iterates every reference in the cell, which in a dense city
+            // is thousands of refs — per stuck NPC, per unstick attempt. Reject
+            // cells whose bounds are outside the radius first.
+            constexpr float kCellSize = 4096.0f;
+            const float r2 = a_radius * a_radius;
             const auto length = grid->length;
             for (std::uint32_t x = 0; x < length; x++) {
                 for (std::uint32_t y = 0; y < length; y++) {
-                    if (auto* cell = grid->GetCell(x, y); cell && cell->IsAttached()) {
-                        cell->ForEachReferenceInRange(pos, a_radius, visit);
+                    auto* cell = grid->GetCell(x, y);
+                    if (!cell || !cell->IsAttached()) {
+                        continue;
                     }
+                    if (auto* coords = cell->GetCoordinates()) {
+                        const float minX = static_cast<float>(coords->cellX) * kCellSize;
+                        const float minY = static_cast<float>(coords->cellY) * kCellSize;
+                        // Squared point-to-AABB distance in the XY plane.
+                        const float dx = std::max({ minX - pos.x, 0.0f, pos.x - (minX + kCellSize) });
+                        const float dy = std::max({ minY - pos.y, 0.0f, pos.y - (minY + kCellSize) });
+                        if (dx * dx + dy * dy > r2) {
+                            continue;
+                        }
+                    }
+                    cell->ForEachReferenceInRange(pos, a_radius, visit);
                 }
             }
         }

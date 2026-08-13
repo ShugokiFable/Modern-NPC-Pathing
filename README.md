@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.8
+# NPC Pathing NG v2.4.9
 
 Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyParkour vault/climb and follower parkour replay. Stuck NPCs can step around geometry, open simple doors, vault or climb when SkyParkour is installed, and only then fall back to a short validated sidestep teleport.
 
@@ -21,9 +21,30 @@ Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyPa
 - **Not a full AI overhaul.** It unstucks and optionally parkours; it does not rewrite pathfinding or combat AI.
 - **Default climb height is 130 units** (steps, vaults, low/chest ledges) - not full mountain climbing. Raise toward 250 in MCM/INI if you want higher climbs.
 - **Indoor parkour is off by default.** Teleport fallback can still clear stuck NPCs indoors.
-- **2.4.8 is the first genuine native rebuild since 2.4.4.** Versions 2.4.5, 2.4.6 and 2.4.7 all shipped the
+- **2.4.8 was the first genuine native rebuild since 2.4.4.** Versions 2.4.5, 2.4.6 and 2.4.7 all shipped the
   identical 2.4.4 DLL (SHA256 `9e5616e0...`), so any behaviour difference reported between those three
   releases was not native code. The 2.4.8 DLL embeds version `2.4.8`.
+
+## What changed in 2.4.9
+
+Performance release, aimed squarely at frame drops in crowded cities. No behaviour
+change and nothing to reconfigure.
+
+- **Crowd jams no longer run the parkour ledge sweep.** One NPC wedged behind another
+  is the most common stuck cause in a city, and the ~15-iteration sweep could never
+  succeed there (actors are rejected as landing surfaces). Two rays classify the
+  blocker first and bail.
+- **EVG marker scan no longer walks the whole cell grid.** 250-unit radius, but it was
+  calling `ForEachReferenceInRange` on all 25 attached cells; out-of-range cells are
+  now skipped.
+- **EVG self-disable latch now trips on fruitless scans**, not just rejected
+  activations - previously it could never trip anywhere without markers, i.e. every
+  city, so the scan repeated all session.
+- **Follower-faction lookup cached** instead of a global form-table lookup per actor
+  per check.
+
+The EVG items only affected `bEnableEVGTraversal=1` setups. That option remains off by
+default and still cannot work for NPCs.
 
 ## What changed in 2.4.8
 

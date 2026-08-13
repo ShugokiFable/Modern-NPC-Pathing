@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.8
+# NPC Pathing NG v2.4.9
 
 Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with optional SkyParkour vault/climb and follower parkour replay.
 

@@ -78,6 +78,7 @@ private:
     /// Solid *static* geometry within reach ahead — a real navmesh wedge, not
     /// the player's body, another actor, or an AI/dialogue hold.
     bool IsGenuinelyWallStuck(RE::Actor* a_actor) const;
+    bool BlockedByActor(RE::Actor* a_actor) const;
     /// In combat and close to the player: pressing the attack, not navmesh-stuck.
     bool InCombatNearPlayer(RE::Actor* a_actor) const;
     /// A door blocking the way ahead, if any (doorways must never be sidestepped).
