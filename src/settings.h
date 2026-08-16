@@ -50,7 +50,12 @@ public:
     // SFX play at the listener whenever any high-process NPC parkours — the
     // "ghost climb" reports after 2.4.9. 0 = unlimited (pre-2.4.10 behaviour).
     float parkourMaxPlayerDistance = 1600.0f;
-    bool  enableEvgTraversal = false;  // NPCs use EVG Animated Traversal markers
+    // NPCs use EVG Animated Traversal markers as ROUTES (2.5.0+): parkour
+    // along the marker heading, else a collision-validated hop across. The
+    // furniture is never activated for NPCs (engine-rejected). Harmless
+    // without EVG installed — the route layer reports unavailable and the
+    // only cost is a bounded marker scan in stuck NPCs' cells.
+    bool enableEvgTraversal = true;
 
     // [Avoidance]
     bool  enableTeleportFallback = true;

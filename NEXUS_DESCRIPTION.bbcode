@@ -1,13 +1,14 @@
 [size=5][b]Modern NPC Pathing / NPC Pathing NG[/b][/size]
-[size=3]Version [b]2.4.10[/b] · Source: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing]GitHub[/url][/size]
+[size=3]Version [b]2.5.0[/b] · Source: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing]GitHub[/url][/size]
 
-[b]Runtime navmesh failsafe[/b] for humanoid NPCs on Skyrim SE/AE, with [b]optional[/b] SkyParkour vault/climb and follower parkour replay. Stuck NPCs that are actually trying to walk can step around geometry, handle simple doors, vault or climb when SkyParkour is present, and only then use a short validated last-resort teleport.
+[b]Runtime navmesh failsafe[/b] for humanoid NPCs on Skyrim SE/AE, with [b]optional[/b] SkyParkour vault/climb, EVG Animated Traversal marker routes, and follower parkour replay. Stuck NPCs that are actually trying to walk can step around geometry, handle simple doors, vault or climb when SkyParkour is present, route across EVG markers when EVG is present, and only then use a short validated last-resort teleport.
 
 [size=4][b]What this mod does[/b][/size]
 [list]
 [*]Detects NPCs that are [b]trying to walk[/b] but not moving (idle/sandbox/sit/swim/mount ignored)
 [*]Optional [b]SkyParkour[/b] vault/climb for NPCs (needs SkyParkour V3 + its behavior patch)
 [*][b]Followers[/b] can replay [i]your[/i] recent SkyParkour moves (teammate flag — NFF / vanilla / similar)
+[*][b]EVG Animated Traversal markers[/b] are used as routes (on by default): a stuck NPC parkours along the marker's heading, or hops across to a collision-validated landing
 [*][b]Doorway-aware[/b] handling — does not shove NPCs sideways out of chokepoints
 [*][b]Last-resort[/b] sidestep teleport only after repeated stuck cycles against static geometry (disableable)
 [*][b]MCM[/b] via MCM Helper, or INI without it
@@ -16,7 +17,7 @@
 
 [size=4][b]What this mod does NOT claim[/b][/size]
 [list]
-[*][b]EVG Animated Traversal is NOT required[/b] and [b]NPC EVG markers do not currently work[/b]. Furniture entry for NPCs is package-driven; marker activation is rejected by the engine. Default is OFF. The FOMOD EVG option is experimental only. Your player-side EVG use is unaffected.
+[*][b]EVG Animated Traversal is NOT required[/b]. With it installed, markers work for NPCs as routes since 2.5.0 — never as furniture (the engine rejects NPC furniture entry). Without it, nothing changes. Your player-side EVG use is unaffected.
 [*]Not a full AI or pathfinding overhaul
 [*]Default max climb is [b]130[/b] units (steps / vaults / low ledges). Raise toward 250 in MCM if you want higher climbs
 [*]Indoor parkour is [b]off by default[/b]
@@ -48,7 +49,7 @@
 Use a mod manager. Prefer the [b]FOMOD[/b] archive so the installer can pick SkyParkour vs failsafe-only profiles.
 
 [size=4][b]Updating[/b][/size]
-Replace the previous version. FormIDs are unchanged except one new MCM global in 2.4.10. A clean save is not required. Existing saves keep their other MCM values; the new parkour distance cap starts at 1600.
+Replace the previous version. FormIDs, ESP globals and record layout are unchanged since 2.4.6. A clean save is not required. 2.5.0 only flips the EVG marker-route default from OFF to ON; existing saves keep their saved MCM values.
 
 [b]If you installed yanked 2.4.5:[/b]
 [list=1]
@@ -61,10 +62,11 @@ Replace the previous version. FormIDs are unchanged except one new MCM global in
 [list]
 [*]MCM: [b]NPC Pathing NG[/b]
 [*]INI fallback: [font=Courier New]Data/SKSE/Plugins/NPCPathingNG.ini[/font]
-[*]Defaults: followers on, combat NPCs on, indoor parkour off, climb 130, parkour max distance 1600, EVG off
+[*]Defaults: followers on, combat NPCs on, indoor parkour off, climb 130, parkour max distance 1600, EVG marker routes on
 [/list]
 
 [size=4][b]Changelog (recent)[/b][/size]
+[b]2.5.0[/b] — EVG markers as routes (on by default): marker-guided SkyParkour, then a bounds-validated landing hop (ladders/ledges up, drops/rolls down, squeezes/vaults across). The engine-rejected furniture-activation path is removed; marker scanning re-arms on cell change. No save cleaning needed.
 [b]2.4.10[/b] — Fixed phantom SkyParkour climb sounds (2D SFX from off-screen / distant NPCs). Parkour now requires the NPC to be within 1600 units of you (MCM: Parkour Max Distance; 0 = unlimited).
 [b]2.4.9[/b] — City performance: crowd-jam early-out, EVG cell skip, fruitless-scan latch, cached follower faction.
 [b]2.4.8[/b] — First genuine native rebuild since 2.4.4; no more vaults onto barrels/crates; INI/FOMOD preset seeds the MCM.

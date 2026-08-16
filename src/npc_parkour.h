@@ -3,6 +3,7 @@
 #include "parkour_types.h"
 
 #include "RE/A/Actor.h"
+#include "RE/C/CollisionLayers.h"
 #include "RE/N/NiPoint3.h"
 
 namespace NpcParkour
@@ -16,6 +17,15 @@ namespace NpcParkour
 
     /// True if the SkyParkour third-person behavior patch is active on this actor's graph.
     bool HasBehaviorPatch(RE::Actor* a_actor);
+
+    /// Collision layers that are never a valid climb/landing surface
+    /// (SkyParkour ClimbLayerExclusionList).
+    bool LayerExcludedForClimb(RE::COL_LAYER a_layer);
+
+    /// Bases that are never a valid landing surface — actors, doors, activators,
+    /// and props an NPC cannot path off (SkyParkour form exclusions plus the
+    /// container/movable-static/tree/flora extensions from 2.4.0).
+    bool FormExcluded(RE::TESObjectREFR* a_ref);
 
     /// Full ledge scan (vault first, then climb) — port of SkyParkour's player-side checks.
     /// a_fwd must be the flat, normalized facing direction. a_maxClimbHeight caps climb scan (game units, unscaled).

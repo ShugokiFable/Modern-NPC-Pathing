@@ -57,8 +57,9 @@ def build_staging() -> None:
     base = (PACKAGE / "SKSE/Plugins/NPCPathingNG.ini").read_text(encoding="utf-8")
     variants = {
         "ini_recommended": base,
-        "ini_evg": base.replace("bEnableEVGTraversal=0", "bEnableEVGTraversal=1"),
-        "ini_failsafe": base.replace("bEnableParkour=1", "bEnableParkour=0"),
+        "ini_noevg": base.replace("bEnableEVGTraversal=1", "bEnableEVGTraversal=0"),
+        "ini_failsafe": base.replace("bEnableEVGTraversal=1", "bEnableEVGTraversal=0")
+                            .replace("bEnableParkour=1", "bEnableParkour=0"),
     }
     for name, text in variants.items():
         dst = STAGING / name / "SKSE" / "Plugins" / "NPCPathingNG.ini"
@@ -72,7 +73,7 @@ def build_staging() -> None:
         evg = re.search(r"^bEnableEVGTraversal=(\d)", t, re.M).group(1)
         return parkour, evg
 
-    expected = {"ini_recommended": ("1", "0"), "ini_evg": ("1", "1"), "ini_failsafe": ("0", "0")}
+    expected = {"ini_recommended": ("1", "1"), "ini_noevg": ("1", "0"), "ini_failsafe": ("0", "0")}
     for name, want in expected.items():
         got = flags(name)
         if got != want:

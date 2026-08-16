@@ -15,7 +15,10 @@
 namespace
 {
     constexpr float kActorHeight = 120.0f;
+}
 
+namespace NpcParkour
+{
     // Ledge-point layers that are invalid for climbing (SkyParkour ClimbLayerExclusionList).
     bool LayerExcludedForClimb(RE::COL_LAYER a_layer)
     {

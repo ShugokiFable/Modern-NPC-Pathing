@@ -360,8 +360,8 @@ void PathingManager::TrackPlayerParkour()
     playerWasParkouring = ongoing;
 
     // EVG traversal: fires when the player enters one of the marker furnitures.
-    // Only worth recording while followers can actually reuse the marker.
-    if (settings->enableEvgTraversal && EvgTraversal::IsNpcUseSupported()) {
+    // Only worth recording while followers can actually route across markers.
+    if (settings->enableEvgTraversal && EvgTraversal::IsRouteEnabled()) {
         RE::FormID furnBase = 0;
         auto furnHandle = player->GetOccupiedFurniture();
         auto furnPtr = furnHandle.get();
@@ -427,21 +427,31 @@ bool PathingManager::TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry)
         }
 
         if (isEvg) {
-            if (!EvgTraversal::IsNpcUseSupported()) {
-                continue;  // engine won't let NPCs enter the furniture; don't stall on it
+            if (!EvgTraversal::IsRouteEnabled()) {
+                continue;  // scanning latched off in this cell; don't stall on it
             }
             auto markerPtr = ev.furnRef.get();
             if (!markerPtr) {
                 continue;
             }
-            if (EvgTraversal::Use(a_actor, markerPtr.get())) {
+            // Route across the marker the way the player just did: a SkyParkour
+            // move along the marker heading when the geometry matches, else a
+            // collision-validated hop. (Furniture activation for NPCs is
+            // engine-rejected — see evg_traversal.h.)
+            const RE::NiPoint3 mFwd = YawToForward(markerPtr->GetAngleZ());
+            const bool routed =
+                (settings->enableParkour && TryParkour(a_actor, &mFwd)) ||
+                (!InCombatNearPlayer(a_actor) && TryEvgHop(a_actor, markerPtr.get(), mFwd));
+            if (routed) {
                 ev.consumed.insert(fid);
                 a_entry.stuckCount = 0;
                 a_entry.lastEvgTime = now;
+                a_entry.lastTraversalEnd = now;
                 a_entry.cooldownUntil = now + Settings::GetSingleton()->cooldown;
                 if (settings->debugLogging) {
                     const char* name = a_actor->GetName();
-                    spdlog::info("NPCPathingNG: follower {} using EVG marker after player", name ? name : "?");
+                    spdlog::info("NPCPathingNG: follower {} routed across EVG marker after player",
+                                 name ? name : "?");
                 }
                 return true;
             }
@@ -597,9 +607,9 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
         return;
     }
 
-    // 1) Animated traversal is always the goal — try it first, every time.
-    //    EVG markers are hand-placed where pathing breaks; parkour self-gates
-    //    on real ledge geometry, so it can't fire in open space.
+    // 1) Traversal routes first — EVG markers, then plain SkyParkour. EVG
+    //    markers are hand-placed where pathing breaks; parkour self-gates on
+    //    real ledge geometry, so it can't fire in open space.
     if (settings->enableEvgTraversal &&
         TryEvgTraversal(a_actor, a_entry, ForwardVector(a_actor))) {
         a_entry.escalation = 0;
@@ -637,34 +647,230 @@ void PathingManager::Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_tea
 
 bool PathingManager::TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, const RE::NiPoint3& a_fwd)
 {
-    if (!EvgTraversal::IsNpcUseSupported()) {
+    auto* settings = Settings::GetSingleton();
+
+    if (!EvgTraversal::IsRouteEnabled()) {
         return false;
     }
-    // If a recent activation didn't get this actor moving, let the other
-    // unstick methods have their turn instead of hammering the same marker.
+    // If a recent route didn't get this actor moving, let the other unstick
+    // methods have their turn instead of hammering the same marker.
     if (now - a_entry.lastEvgTime < 20.0) {
         return false;
     }
 
     auto* marker = EvgTraversal::FindMarkerNear(a_actor, a_fwd, 250.0f);
     if (!marker) {
-        // A scan that finds nothing must count toward the self-disable latch too.
-        // Previously only a FAILED ActivateRef did, and ActivateRef is only ever
-        // reached when a marker was found — so anywhere without EVG markers (i.e.
-        // every city) the latch never tripped and every stuck NPC kept re-scanning
-        // the cell grid for the whole session.
+        // A scan that finds nothing must count toward the scan latch —
+        // markerless areas (most cities) must not re-scan the cell grid for
+        // the whole session. Re-armed on cell change / save load.
         EvgTraversal::NoteFruitlessScan();
         return false;
     }
-    if (!EvgTraversal::Use(a_actor, marker)) {
+
+    // Markers are routes, not furniture. First try a SkyParkour move along the
+    // marker's heading — the detection self-gates on real geometry, and the
+    // 2.4.10 player-distance cap applies, so a distant NPC never blasts 2D
+    // climb SFX at the listener.
+    const RE::NiPoint3 mFwd = YawToForward(marker->GetAngleZ());
+    if (settings->enableParkour && TryParkour(a_actor, &mFwd)) {
+        a_entry.lastEvgTime = now;
+        EvgTraversal::NoteRouteSuccess();
+        if (settings->debugLogging) {
+            const char* name = a_actor->GetName();
+            spdlog::info("NPCPathingNG: {} parkouring along EVG marker {:08X}",
+                         name ? name : "?", marker->GetFormID());
+        }
+        return true;
+    }
+
+    // The geometry does not match a parkour move (ladder, squeeze, drop) —
+    // hop the actor across the marker to a bounds-derived, collision-validated
+    // landing. Hop only after the animated routes had a chance, and never in
+    // combat near the player.
+    if (a_entry.escalation >= 2 && !InCombatNearPlayer(a_actor) &&
+        TryEvgHop(a_actor, marker, mFwd)) {
+        a_entry.lastEvgTime = now;
+        a_entry.lastTraversalEnd = now;  // posture-guard window
+        EvgTraversal::NoteRouteSuccess();
+        if (settings->debugLogging) {
+            const char* name = a_actor->GetName();
+            spdlog::info("NPCPathingNG: {} hopped across EVG marker {:08X}",
+                         name ? name : "?", marker->GetFormID());
+        }
+        return true;
+    }
+    return false;
+}
+
+bool PathingManager::TryEvgHop(RE::Actor* a_actor, RE::TESObjectREFR* a_marker,
+                               const RE::NiPoint3& a_markerFwd)
+{
+    // The marker may have been stored a while ago (follower replay) — never
+    // route around an unloaded or detached reference.
+    if (!a_marker->Is3DLoaded() || a_marker->IsDisabled() || a_marker->IsDeleted()) {
+        return false;
+    }
+    const EvgTraversal::RouteKind kind = EvgTraversal::KindFor(a_marker->GetBaseObject());
+
+    const RE::NiPoint3 pos = a_actor->GetPosition();
+    const RE::NiPoint3 mPos = a_marker->GetPosition();
+    float scale = a_actor->GetScale();
+    if (scale <= 0.0f) {
+        scale = 1.0f;
+    }
+
+    constexpr float kBodyRadius = 28.0f;
+    constexpr float kMaxHopRange = 320.0f;  // horizontal reach from the actor
+    constexpr float kMaxUp = 260.0f;        // tallest EVG ladders (climb cap)
+    constexpr float kMaxDown = 400.0f;      // deepest drops we will hop
+    const RE::NiPoint3 up(0.0f, 0.0f, 1.0f);
+    const RE::NiPoint3 down(0.0f, 0.0f, -1.0f);
+
+    // Horizontal extent of the marker's furniture bounds along its heading.
+    // OBND is an object-space AABB in world axes; project the half-extents
+    // onto the marker heading. Degenerate bounds (common on markers) fall
+    // back to a body-width estimate.
+    float halfDepth = 32.0f;
+    if (auto* base = a_marker->GetBaseObject()) {
+        const auto& bb = base->boundData;
+        const float hx = static_cast<float>(bb.boundMax.x - bb.boundMin.x) * 0.5f;
+        const float hy = static_cast<float>(bb.boundMax.y - bb.boundMin.y) * 0.5f;
+        const float yaw = a_marker->GetAngleZ();
+        const float proj = std::abs(hx * std::sin(yaw)) + std::abs(hy * std::cos(yaw));
+        if (proj >= 8.0f && proj <= 400.0f) {
+            halfDepth = proj;
+        }
+    }
+
+    RE::NiPoint3 landing;
+    bool found = false;
+
+    switch (kind) {
+    case EvgTraversal::RouteKind::Across: {
+        // Far side of the marker's bounds, ground-snapped at the actor's level.
+        const float targetDist = std::clamp(halfDepth + kBodyRadius + 24.0f, 40.0f, 220.0f);
+        const RE::NiPoint3 candidate = mPos + a_markerFwd * targetDist;
+        const auto ground = Raycast::Cast(a_actor, candidate + up * 150.0f, down, 300.0f);
+        if (!ground.didHit || ground.normalZ < 0.45f || IsActorHit(ground)) {
+            return false;
+        }
+        const float groundZ = candidate.z + 150.0f - ground.distance;
+        if (std::abs(groundZ - pos.z) > 100.0f) {
+            return false;
+        }
+        // The travel corridor may clip the very obstacle the marker spans, so
+        // static hits are acceptable here — but never hop through a person.
+        const RE::NiPoint3 toCandidate = candidate - pos;
+        const float dist = toCandidate.Length();
+        if (dist <= 0.0f || dist > kMaxHopRange) {
+            return false;
+        }
+        const RE::NiPoint3 nDir = toCandidate / dist;
+        for (float h : { 20.0f, 70.0f }) {
+            const auto hit = Raycast::Cast(a_actor, pos + up * h, nDir, dist);
+            if (hit.didHit && IsActorHit(hit)) {
+                return false;
+            }
+        }
+        landing = { candidate.x, candidate.y, groundZ };
+        found = true;
+        break;
+    }
+    case EvgTraversal::RouteKind::Up: {
+        // March ahead along the marker heading, probing for the top surface.
+        const float probeCeil = pos.z + kMaxUp * scale + 150.0f;
+        const float probeLen = kMaxUp * scale + 180.0f;
+        for (float t = 24.0f; t <= kMaxHopRange; t += 16.0f) {
+            const RE::NiPoint3 probe(mPos.x + a_markerFwd.x * t, mPos.y + a_markerFwd.y * t, 0.0f);
+            const RE::NiPoint3 flat(probe.x - pos.x, probe.y - pos.y, 0.0f);
+            if (flat.SqrLength() > kMaxHopRange * kMaxHopRange) {
+                continue;
+            }
+            const auto hit = Raycast::Cast(a_actor, RE::NiPoint3(probe.x, probe.y, probeCeil), down, probeLen);
+            if (!hit.didHit || hit.normalZ < 0.45f || IsActorHit(hit) ||
+                NpcParkour::LayerExcludedForClimb(hit.layer) || NpcParkour::FormExcluded(hit.hitRef)) {
+                continue;
+            }
+            const float hitZ = probeCeil - hit.distance;
+            if (hitZ < pos.z + 30.0f * scale || hitZ > pos.z + kMaxUp * scale) {
+                continue;
+            }
+            landing = { probe.x, probe.y, hitZ };
+            found = true;
+            break;
+        }
+        break;
+    }
+    case EvgTraversal::RouteKind::Down: {
+        // March ahead along the marker heading, probing for the lower floor.
+        auto* cell = a_actor->GetParentCell();
+        for (float t = 24.0f; t <= kMaxHopRange; t += 16.0f) {
+            const RE::NiPoint3 probe(mPos.x + a_markerFwd.x * t, mPos.y + a_markerFwd.y * t, 0.0f);
+            const RE::NiPoint3 flat(probe.x - pos.x, probe.y - pos.y, 0.0f);
+            if (flat.SqrLength() > kMaxHopRange * kMaxHopRange) {
+                continue;
+            }
+            const auto hit = Raycast::Cast(a_actor, RE::NiPoint3(probe.x, probe.y, pos.z + 20.0f), down, kMaxDown + 60.0f);
+            if (!hit.didHit || hit.normalZ < 0.45f || IsActorHit(hit) ||
+                NpcParkour::LayerExcludedForClimb(hit.layer) || NpcParkour::FormExcluded(hit.hitRef)) {
+                continue;
+            }
+            const float hitZ = pos.z + 20.0f - hit.distance;
+            if (pos.z - hitZ < 30.0f || pos.z - hitZ > kMaxDown) {
+                continue;
+            }
+            // Never hop into water.
+            if (cell) {
+                float waterLevel = -200000.0f;
+                cell->GetWaterHeight(RE::NiPoint3(probe.x, probe.y, hitZ), waterLevel);
+                if (hitZ < waterLevel - 10.0f) {
+                    continue;
+                }
+            }
+            landing = { probe.x, probe.y, hitZ };
+            found = true;
+            break;
+        }
+        break;
+    }
+    }
+
+    if (!found || !LandingIsClear(a_actor, landing.z, landing.x, landing.y)) {
         return false;
     }
 
-    a_entry.lastEvgTime = now;
-    if (Settings::GetSingleton()->debugLogging) {
-        const char* name = a_actor->GetName();
-        spdlog::info("NPCPathingNG: {} sent through EVG marker {:08X}",
-                     name ? name : "?", marker->GetFormID());
+    RE::NiPoint3 dest(landing.x, landing.y, landing.z + 2.0f);
+    a_actor->SetPosition(dest, true);
+    return true;
+}
+
+bool PathingManager::LandingIsClear(RE::Actor* a_actor, float a_groundZ, float a_x, float a_y) const
+{
+    constexpr float kBodyRadius = 28.0f;
+    const RE::NiPoint3 up(0.0f, 0.0f, 1.0f);
+
+    // Headroom above the landing spot.
+    if (Raycast::Cast(a_actor, RE::NiPoint3(a_x, a_y, a_groundZ + 10.0f), up, 110.0f).didHit) {
+        return false;
+    }
+
+    // Capsule-width clearance around the landing spot. A clear travel ray
+    // alone is not enough if the endpoint is inside a narrow corner, prop, or
+    // another collision hull.
+    constexpr float kDiagonal = 0.70710678f;
+    constexpr RE::NiPoint3 clearanceDirs[] = {
+        { 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
+        { 0.0f, 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f },
+        { kDiagonal, kDiagonal, 0.0f }, { -kDiagonal, kDiagonal, 0.0f },
+        { kDiagonal, -kDiagonal, 0.0f }, { -kDiagonal, -kDiagonal, 0.0f }
+    };
+    for (float height : { 25.0f, 70.0f }) {
+        const RE::NiPoint3 center(a_x, a_y, a_groundZ + height);
+        for (const auto& dir : clearanceDirs) {
+            if (Raycast::Cast(a_actor, center, dir, kBodyRadius).didHit) {
+                return false;
+            }
+        }
     }
     return true;
 }
@@ -804,34 +1010,7 @@ bool PathingManager::TryTeleportBypass(RE::Actor* a_actor)
             // Headroom and capsule-width clearance at the destination. A clear
             // travel ray alone is not enough if the endpoint is inside a narrow
             // corner, prop, or another collision hull.
-            const RE::NiPoint3 headroomStart(candidate.x, candidate.y, groundZ + 10.0f);
-            const RE::NiPoint3 up(0.0f, 0.0f, 1.0f);
-            if (Raycast::Cast(a_actor, headroomStart, up, 110.0f).didHit) {
-                continue;
-            }
-
-            constexpr float kDiagonal = 0.70710678f;
-            constexpr RE::NiPoint3 clearanceDirs[] = {
-                { 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
-                { 0.0f, 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f },
-                { kDiagonal, kDiagonal, 0.0f }, { -kDiagonal, kDiagonal, 0.0f },
-                { kDiagonal, -kDiagonal, 0.0f }, { -kDiagonal, -kDiagonal, 0.0f }
-            };
-            bool destinationBlocked = false;
-            for (float height : { 25.0f, 70.0f }) {
-                const RE::NiPoint3 center(candidate.x, candidate.y, groundZ + height);
-                for (const auto& clearanceDir : clearanceDirs) {
-                    const auto clearance = Raycast::Cast(a_actor, center, clearanceDir, kBodyRadius);
-                    if (clearance.didHit) {
-                        destinationBlocked = true;
-                        break;
-                    }
-                }
-                if (destinationBlocked) {
-                    break;
-                }
-            }
-            if (destinationBlocked) {
+            if (!LandingIsClear(a_actor, groundZ, candidate.x, candidate.y)) {
                 continue;
             }
 
@@ -998,6 +1177,11 @@ void PathingManager::OnFrame(float a_delta)
     auto* player = RE::PlayerCharacter::GetSingleton();
     if (!player || !player->Is3DLoaded() || !player->GetParentCell()) {
         return;
+    }
+
+    // Re-arm EVG marker scanning when the player travels into a new cell.
+    if (settings->enableEvgTraversal) {
+        EvgTraversal::UpdatePlayerCell(player->GetParentCell());
     }
 
     if (settings->followerReplay &&

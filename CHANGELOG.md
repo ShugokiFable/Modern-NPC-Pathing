@@ -1,3 +1,46 @@
+## 2.5.0 (2026-08-16)
+
+EVG Animated Traversal markers are now **routes** for stuck NPCs, on by default.
+
+### Added
+
+- **Marker-guided parkour.** A stuck NPC near an EVG marker first tries a
+  SkyParkour move along the marker's heading when the geometry matches. The
+  2.4.10 player-distance cap still applies, so distant NPCs never blast 2D
+  climb SFX at the listener.
+- **Bounds-based landing hop.** When the geometry does not match a parkour
+  move, the NPC hops across the marker to a landing derived from the marker's
+  kind (Up: ladders/ledges, Down: drops/rolls/slides, Across: squeezes/vaults)
+  and furniture bounds. Landings are ground-snapped, headroom- and
+  capsule-cleared, never into water, never onto an actor, and the hop is
+  refused in combat near the player.
+- **Follower replay** routes followers across the same markers after the
+  player uses them.
+- **Cell-aware scan latch.** Fruitless marker scans now only pause scanning
+  for the current player cell and re-arm on cell change or save load, instead
+  of disabling marker use for the whole session.
+
+### Changed
+
+- **`bEnableEVGTraversal` now defaults to ON** (code, INI, ESP global and MCM
+  help text). With EVG absent the route layer is inert.
+- **Removed the furniture-activation path entirely** (`ActivateRef` for NPCs
+  was engine-rejected — confirmed repeatedly from SKSE and Papyrus) and the
+  failure latch that existed only because of it.
+- **FOMOD presets rebuilt:** SkyParkour + EVG (recommended), SkyParkour only
+  (no EVG markers), Navmesh failsafe only. The old "experimental EVG" option
+  is gone.
+- **Factored the teleport's destination checks** into a shared
+  `LandingIsClear` helper now used by both the bypass teleport and the EVG
+  hop (same validation, one implementation).
+
+### Notes
+
+- No new settings, globals or records: **no save cleaning**. ESP globals and
+  FormIDs are unchanged since 2.4.6.
+- The EVG toggle default only seeds fresh installs / new games; existing
+  saves keep their saved MCM values.
+
 ## 2.4.10 (2026-08-16)
 
 ### Fixed

@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.4.10"
+VERSION = "2.5.0"
 EXPECTED_LOCAL_IDS = {
     0x800, 0x801, 0x802, 0x803, 0x804, 0x805, 0x806, 0x807,
     0x808, 0x809, 0x80A, 0x80B, 0x80C, 0x80D, 0x80E, 0x80F,
@@ -98,6 +98,7 @@ class ReleaseTests(unittest.TestCase):
     def test_regressions_are_guarded_in_source(self) -> None:
         pathing = read_text(ROOT / "src/pathing.cpp")
         parkour = read_text(ROOT / "src/npc_parkour.cpp")
+        evg = read_text(ROOT / "src/evg_traversal.cpp")
         self.assertIn("CancelParkourJobs(true)", pathing)
         self.assertIn("(settings->enableParkour || settings->enableEvgTraversal)", pathing)
         self.assertIn("(isEvg && !settings->enableEvgTraversal)", pathing)
@@ -106,11 +107,27 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("OnParkourEnd(actor, true);", pathing)
         self.assertIn("TryTeleportBypass(a_actor))", pathing)
         self.assertIn("pathBlocked", pathing)
-        self.assertIn("destinationBlocked", pathing)
+        self.assertIn("LandingIsClear", pathing)
         self.assertIn("IsActorHit(ground)", pathing)
         self.assertGreaterEqual(parkour.count("SetGraphVariableBool(SkyParkourGraph::VarLowerBody, false)"), 2)
         self.assertIn("WithinParkourRange", pathing)
         self.assertIn("parkourMaxPlayerDistance", pathing)
+        # 2.5.0 — EVG markers as routes: the furniture-activation path is gone
+        # and the route machinery must be present.
+        self.assertNotIn("ActivateRef", evg)
+        self.assertIn("RouteKind", evg)
+        self.assertIn("KindFor", evg)
+        self.assertIn("IsRouteEnabled", evg)
+        self.assertIn("NoteRouteSuccess", evg)
+        self.assertIn("TryEvgHop", pathing)
+
+    def test_evg_default_is_enabled_everywhere(self) -> None:
+        settings_h = read_text(ROOT / "src/settings.h")
+        self.assertIn("enableEvgTraversal = true", settings_h)
+        ini = read_text(ROOT / "package/Data/SKSE/Plugins/NPCPathingNG.ini")
+        self.assertIn("bEnableEVGTraversal=1", ini)
+        generator = read_text(ROOT / "generate_esp.py")
+        self.assertIn("(0x811, 'NPNG_EVGTraversal',     1.0)", generator)
 
     def test_shipping_dll_has_required_skse_exports(self) -> None:
         dll_path = ROOT / "package/Data/SKSE/Plugins/NPCPathingNG.dll"

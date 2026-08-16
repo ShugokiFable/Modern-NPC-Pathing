@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace
@@ -19,33 +20,44 @@ namespace
 
     // Usable traversal furniture, local FormIDs verified against the 2.1 ESL.
     // EVGATFailedLedgeMarker (0xF43) is deliberately absent — it's a fail anim.
-    constexpr std::array<RE::FormID, 15> kFurnitureIDs = {
-        0x80A,  // EVGATLadderShort
-        0x812,  // EVGATSqueezeMarker
-        0x827,  // EVGATDuckMarker
-        0x83E,  // EVGATRaiderDropMarker
-        0x891,  // EVGATLedgeMarker
-        0x8F4,  // EVGATVaultMarker
-        0x920,  // EVGATLadderShortMO
-        0x956,  // EVGATTLSlideMO
-        0x982,  // EVGATRaiderRollMarker
-        0x98A,  // EVGATWallDropFMarker
-        0x992,  // EVGATWallDropSMarker
-        0x99A,  // EVGATDeepWalkMarker
-        0x9BF,  // EVGATMediumLedgeMarker
-        0x9C4,  // EVGATLedgeCatchMarker
-        0xF1D,  // EVGATTallLadderUpMarker
+    // RouteKind is how the marker is used as a ROUTE (2.5.0+): the furniture
+    // itself can never be entered by an NPC (see header note).
+    struct FurnitureEntry
+    {
+        RE::FormID              localID;
+        EvgTraversal::RouteKind kind;
     };
+    constexpr std::array<FurnitureEntry, 15> kFurniture = { {
+        { 0x80A, EvgTraversal::RouteKind::Up },      // EVGATLadderShort
+        { 0x812, EvgTraversal::RouteKind::Across },  // EVGATSqueezeMarker
+        { 0x827, EvgTraversal::RouteKind::Across },  // EVGATDuckMarker
+        { 0x83E, EvgTraversal::RouteKind::Down },    // EVGATRaiderDropMarker
+        { 0x891, EvgTraversal::RouteKind::Up },      // EVGATLedgeMarker
+        { 0x8F4, EvgTraversal::RouteKind::Across },  // EVGATVaultMarker
+        { 0x920, EvgTraversal::RouteKind::Up },      // EVGATLadderShortMO
+        { 0x956, EvgTraversal::RouteKind::Down },    // EVGATTLSlideMO
+        { 0x982, EvgTraversal::RouteKind::Down },    // EVGATRaiderRollMarker
+        { 0x98A, EvgTraversal::RouteKind::Down },    // EVGATWallDropFMarker
+        { 0x992, EvgTraversal::RouteKind::Down },    // EVGATWallDropSMarker
+        { 0x99A, EvgTraversal::RouteKind::Down },    // EVGATDeepWalkMarker
+        { 0x9BF, EvgTraversal::RouteKind::Up },      // EVGATMediumLedgeMarker
+        { 0x9C4, EvgTraversal::RouteKind::Up },      // EVGATLedgeCatchMarker
+        { 0xF1D, EvgTraversal::RouteKind::Up },      // EVGATTallLadderUpMarker
+    } };
 
     std::unordered_set<RE::FormID> g_resolvedIDs;  // runtime FormIDs of the bases
+    std::unordered_map<RE::FormID, EvgTraversal::RouteKind> g_kinds;
     bool g_available = false;
 
-    // NPC furniture entry cannot be forced through activation (see header).
-    // Latch it off after this many consecutive failures instead of retrying
-    // a call that will never succeed.
+    // Marker scanning is latched off after repeated scans find nothing, so a
+    // markerless area (most cities) does not re-scan the cell grid forever.
+    // Unlike the pre-2.5.0 activation-failure latch, this one re-arms when the
+    // player's cell changes — an EVG dungeon reached later in the same session
+    // gets its markers used.
     constexpr int kNpcFailureLimit = 3;
-    int  g_npcFailures = 0;
-    bool g_npcUseSupported = true;
+    int  g_fruitlessScans = 0;
+    bool g_scanEnabled = true;
+    const RE::TESObjectCELL* g_currentCell = nullptr;
 }
 
 namespace EvgTraversal
@@ -53,6 +65,7 @@ namespace EvgTraversal
     void CacheForms()
     {
         g_resolvedIDs.clear();
+        g_kinds.clear();
         g_available = false;
 
         auto* dataHandler = RE::TESDataHandler::GetSingleton();
@@ -60,18 +73,19 @@ namespace EvgTraversal
             return;
         }
 
-        for (const auto localID : kFurnitureIDs) {
-            if (auto* form = dataHandler->LookupForm(localID, EVG_PLUGIN)) {
+        for (const auto& entry : kFurniture) {
+            if (auto* form = dataHandler->LookupForm(entry.localID, EVG_PLUGIN)) {
                 g_resolvedIDs.insert(form->GetFormID());
+                g_kinds.emplace(form->GetFormID(), entry.kind);
             }
         }
 
         g_available = !g_resolvedIDs.empty();
         if (g_available) {
-            spdlog::info("NPCPathingNG: EVG Animated Traversal found — {} marker types usable by NPCs",
+            spdlog::info("NPCPathingNG: EVG Animated Traversal found — {} marker types usable as routes",
                          g_resolvedIDs.size());
         } else {
-            spdlog::info("NPCPathingNG: EVG Animated Traversal not present — marker traversal disabled");
+            spdlog::info("NPCPathingNG: EVG Animated Traversal not present — marker routes disabled");
         }
     }
 
@@ -80,26 +94,45 @@ namespace EvgTraversal
         return g_available;
     }
 
-    bool IsNpcUseSupported()
+    bool IsRouteEnabled()
     {
-        return g_available && g_npcUseSupported;
+        return g_available && g_scanEnabled;
     }
 
-    void ResetNpcUseState()
+    void UpdatePlayerCell(const RE::TESObjectCELL* a_cell)
     {
-        g_npcFailures = 0;
-        g_npcUseSupported = true;
+        // Re-arm the scan latch when the player travels to a new cell. A
+        // markerless area latched scanning off; the next area must get a fresh
+        // chance without a reload.
+        if (a_cell && g_currentCell && g_currentCell != a_cell && !g_scanEnabled) {
+            g_scanEnabled = true;
+            g_fruitlessScans = 0;
+            spdlog::info("NPCPathingNG: player cell changed — EVG marker scanning re-armed");
+        }
+        g_currentCell = a_cell;
+    }
+
+    void ResetRouteState()
+    {
+        g_fruitlessScans = 0;
+        g_scanEnabled = true;
     }
 
     void NoteFruitlessScan()
     {
-        if (g_npcUseSupported && ++g_npcFailures >= kNpcFailureLimit) {
-            g_npcUseSupported = false;
+        if (g_scanEnabled && ++g_fruitlessScans >= kNpcFailureLimit) {
+            g_scanEnabled = false;
             spdlog::info(
-                "NPCPathingNG: EVG NPC traversal disabled for this session — {} marker scans "
-                "found nothing nearby. Re-armed on the next game load.",
-                g_npcFailures);
+                "NPCPathingNG: EVG marker scanning paused for this cell — {} scans found no "
+                "marker nearby. Re-armed on cell change or the next game load.",
+                g_fruitlessScans);
         }
+    }
+
+    void NoteRouteSuccess()
+    {
+        g_fruitlessScans = 0;
+        g_scanEnabled = true;
     }
 
     bool IsTraversalFurniture(const RE::TESBoundObject* a_base)
@@ -107,9 +140,18 @@ namespace EvgTraversal
         return a_base && g_resolvedIDs.contains(a_base->GetFormID());
     }
 
+    RouteKind KindFor(const RE::TESBoundObject* a_base)
+    {
+        if (!a_base) {
+            return RouteKind::Across;
+        }
+        const auto it = g_kinds.find(a_base->GetFormID());
+        return it != g_kinds.end() ? it->second : RouteKind::Across;
+    }
+
     RE::TESObjectREFR* FindMarkerNear(RE::Actor* a_actor, const RE::NiPoint3& a_fwd, float a_radius)
     {
-        if (!g_available || !a_actor) {
+        if (!g_available || !g_scanEnabled || !a_actor) {
             return nullptr;
         }
         auto* tes = RE::TES::GetSingleton();
@@ -199,42 +241,5 @@ namespace EvgTraversal
         }
 
         return best;
-    }
-
-    bool Use(RE::Actor* a_actor, RE::TESObjectREFR* a_marker)
-    {
-        if (!a_actor || !a_marker) {
-            return false;
-        }
-        // The marker may have been stored a while ago (follower replay) — never
-        // hand the engine an unloaded or detached reference.
-        if (a_marker->IsDisabled() || a_marker->IsDeleted() || !a_marker->Is3DLoaded()) {
-            return false;
-        }
-        auto* cell = a_marker->GetParentCell();
-        if (!cell || !cell->IsAttached()) {
-            return false;
-        }
-        // Same call Papyrus ObjectReference.Activate(akActor) makes. This
-        // succeeds for the player but is rejected for NPCs — furniture entry
-        // for an NPC goes through the AI package system, which activation
-        // cannot drive (see header note).
-        const bool ok = a_marker->ActivateRef(a_actor, 0, nullptr, 1, false);
-
-        if (ok) {
-            g_npcFailures = 0;
-            return true;
-        }
-
-        if (g_npcUseSupported && ++g_npcFailures >= kNpcFailureLimit) {
-            g_npcUseSupported = false;
-            spdlog::warn(
-                "NPCPathingNG: EVG marker activation was rejected {} times for NPCs — disabling NPC "
-                "marker traversal for this session. This is an engine limitation, not a load-order "
-                "problem: furniture entry for NPCs is driven by AI packages, so activation cannot "
-                "force it. SkyParkour traversal and the teleport fallback are unaffected.",
-                g_npcFailures);
-        }
-        return false;
     }
 }

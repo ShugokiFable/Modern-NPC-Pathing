@@ -89,7 +89,16 @@ private:
     void ProcessDetection(RE::Actor* a_actor, ActorEntry& a_entry);
     bool TryFollowerReplay(RE::Actor* a_actor, ActorEntry& a_entry);
     void Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_teammate);
+    /// EVG markers as routes (2.5.0+): SkyParkour along the marker heading,
+    /// then a bounds-derived landing hop. Never activates the furniture.
     bool TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, const RE::NiPoint3& a_fwd);
+    /// Collision-validated hop across an EVG marker: landing derived from the
+    /// marker's kind (Across/Up/Down) and furniture bounds, ground-snapped and
+    /// capsule-cleared. Positional only — no animation, no sound.
+    bool TryEvgHop(RE::Actor* a_actor, RE::TESObjectREFR* a_marker, const RE::NiPoint3& a_markerFwd);
+    /// Headroom + body-radius clearance at a landing point (shared by the
+    /// teleport bypass and the EVG hop).
+    bool LandingIsClear(RE::Actor* a_actor, float a_groundZ, float a_x, float a_y) const;
     bool TryParkour(RE::Actor* a_actor, const RE::NiPoint3* a_fwdOverride = nullptr);
     /// SkyParkour SFX are 2D (SOMStereo). Refuse parkour when the actor is
     /// farther than Settings::parkourMaxPlayerDistance. 0 = no limit.

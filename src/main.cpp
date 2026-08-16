@@ -75,9 +75,9 @@ namespace
         case SKSE::MessagingInterface::kPreLoadGame:
         case SKSE::MessagingInterface::kNewGame:
             PathingManager::GetSingleton()->Reset();
-            // Give EVG NPC use a fresh chance after a load — the latch is a
-            // per-session heuristic, not a permanent verdict.
-            EvgTraversal::ResetNpcUseState();
+            // Give EVG marker scanning a fresh chance after a load — the scan
+            // latch is a per-cell heuristic, not a permanent verdict.
+            EvgTraversal::ResetRouteState();
             break;
         default:
             break;
