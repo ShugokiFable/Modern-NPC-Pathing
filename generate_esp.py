@@ -7,7 +7,7 @@ The ESP carries MCM-editable GLOB settings and the MCM Helper anchor quest
 so MCM changes apply instantly in-game.
 
 Records:
-  GLOB  0x800-0x80F, 0x811-0x812   settings (floats; bools as 0/1)
+  GLOB  0x800-0x80F, 0x811-0x813   settings (floats; bools as 0/1)
   QUST  0x810                       MCM anchor quest (VMAD: MCM_ConfigBase)
 
 Run:  python generate_esp.py [output.esp]
@@ -15,7 +15,7 @@ Run:  python generate_esp.py [output.esp]
 import struct, os, sys
 
 PLUGIN_INDEX = 0x01000000  # one master (Skyrim.esm) -> our records live at index 01
-NEXT_OBJECT_ID = 0x813       # HEDR stores the next local object ID, never a load-order-prefixed FormID
+NEXT_OBJECT_ID = 0x814       # HEDR stores the next local object ID, never a load-order-prefixed FormID
 
 # ── low-level plugin encoding ────────────────────────────────────────────────
 def zstr(s):
@@ -82,6 +82,7 @@ GLOBS = [
     (0x80F, 'NPNG_DebugLogging',     0.0),
     (0x811, 'NPNG_EVGTraversal',     0.0),  # 0x810 is the MCM quest
     (0x812, 'NPNG_TeleportEscalation', 3.0),
+    (0x813, 'NPNG_ParkourMaxPlayerDistance', 1600.0),
 ]
 
 # ── plugin assembly ──────────────────────────────────────────────────────────

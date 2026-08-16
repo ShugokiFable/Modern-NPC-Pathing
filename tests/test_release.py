@@ -11,11 +11,11 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.4.9"
+VERSION = "2.4.10"
 EXPECTED_LOCAL_IDS = {
     0x800, 0x801, 0x802, 0x803, 0x804, 0x805, 0x806, 0x807,
     0x808, 0x809, 0x80A, 0x80B, 0x80C, 0x80D, 0x80E, 0x80F,
-    0x810, 0x811, 0x812,
+    0x810, 0x811, 0x812, 0x813,
 }
 
 
@@ -60,8 +60,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(tag, b"HEDR")
         version, record_count, next_object_id = struct.unpack("<fII", payload)
         self.assertAlmostEqual(version, 1.71, places=5)
-        self.assertEqual(record_count, 19)
-        self.assertEqual(next_object_id, 0x813, "HEDR next object ID must be local, not load-order-prefixed")
+        self.assertEqual(record_count, 20)
+        self.assertEqual(next_object_id, 0x814, "HEDR next object ID must be local, not load-order-prefixed")
         self.assertEqual(record_size + 24, self.data.find(b"GRUP"))
 
         form_ids: set[int] = set()
@@ -109,6 +109,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("destinationBlocked", pathing)
         self.assertIn("IsActorHit(ground)", pathing)
         self.assertGreaterEqual(parkour.count("SetGraphVariableBool(SkyParkourGraph::VarLowerBody, false)"), 2)
+        self.assertIn("WithinParkourRange", pathing)
+        self.assertIn("parkourMaxPlayerDistance", pathing)
 
     def test_shipping_dll_has_required_skse_exports(self) -> None:
         dll_path = ROOT / "package/Data/SKSE/Plugins/NPCPathingNG.dll"

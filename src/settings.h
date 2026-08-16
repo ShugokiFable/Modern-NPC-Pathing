@@ -45,6 +45,11 @@ public:
     float maxClimbHeight = 130.0f; // climb detection cap. 130 = up to low/chest ledges (steps,
                                    // vaults, low ledges) — NPCs don't scale walls/houses/mountains.
                                    // Raise toward 250 (SkyParkour's own max) for full mountain climbs.
+    // SkyParkour climb/vault HKX files fire SoundPlay.SPPF_* descriptors that
+    // use vanilla SOMStereo (2D, no attenuation). Without a range cap those
+    // SFX play at the listener whenever any high-process NPC parkours — the
+    // "ghost climb" reports after 2.4.9. 0 = unlimited (pre-2.4.10 behaviour).
+    float parkourMaxPlayerDistance = 1600.0f;
     bool  enableEvgTraversal = false;  // NPCs use EVG Animated Traversal markers
 
     // [Avoidance]
@@ -86,4 +91,5 @@ private:
     RE::TESGlobal* gDebugLogging = nullptr;
     RE::TESGlobal* gEvgTraversal = nullptr;
     RE::TESGlobal* gTeleportEscalation = nullptr;
+    RE::TESGlobal* gParkourMaxPlayerDistance = nullptr;
 };

@@ -97,6 +97,11 @@ namespace
              "; only; NPCs won't scale walls, houses or mountainsides. Raise toward 250 (SkyParkour's\n"
              "; own max) for full cliff/mountain climbing.\n"
              "fMaxClimbHeight=130.0\n"
+             "; Max distance from the player at which NPCs may fire SkyParkour animations.\n"
+             "; SkyParkour climb/vault sounds are 2D (SOMStereo) — they play at your ears with\n"
+             "; no distance fade — so a far or off-screen NPC otherwise sounds like someone\n"
+             "; climbing next to you. 1600 ~ hearing range for a 3D footstep. 0 = no limit.\n"
+             "fParkourMaxPlayerDistance=1600.0\n"
              "; NPCs use EVG Animated Traversal markers. OFF by default: the engine does not let\n"
              "; NPCs enter furniture via activation (furniture entry is AI-package driven), so this\n"
              "; cannot currently work for NPCs and only costs marker scans. EVG itself is NOT\n"
@@ -162,6 +167,8 @@ void Settings::Load()
     enableParkour = getBool("parkour/benableparkour", enableParkour);
     parkourIndoorMode = std::clamp(getInt("parkour/iindoormode", parkourIndoorMode), 0, 2);
     maxClimbHeight = std::clamp(getFloat("parkour/fmaxclimbheight", maxClimbHeight), 60.0f, 250.0f);
+    parkourMaxPlayerDistance = std::clamp(
+        getFloat("parkour/fparkourmaxplayerdistance", parkourMaxPlayerDistance), 0.0f, 8000.0f);
     enableEvgTraversal = getBool("parkour/benableevgtraversal", enableEvgTraversal);
     teleportEscalation = std::clamp(getInt("avoidance/iteleportescalation", teleportEscalation), 1, 10);
 
@@ -213,6 +220,7 @@ void Settings::BindGlobals()
     gDebugLogging     = lookup(0x80F);
     gEvgTraversal     = lookup(0x811);
     gTeleportEscalation = lookup(0x812);
+    gParkourMaxPlayerDistance = lookup(0x813);
 
     if (gEnabled) {
         spdlog::info("NPCPathingNG: {} found — settings driven by MCM globals", PLUGIN_FILE);
@@ -248,6 +256,7 @@ void Settings::PushToGlobals()
     setBool(gEnableParkour, enableParkour);
     setNum(gIndoorMode, static_cast<float>(parkourIndoorMode));
     setNum(gMaxClimbHeight, maxClimbHeight);
+    setNum(gParkourMaxPlayerDistance, parkourMaxPlayerDistance);
 
     setBool(gTeleportFallback, enableTeleportFallback);
     setNum(gSnapDistance, snapDistance);
@@ -284,6 +293,8 @@ void Settings::Refresh()
     enableParkour = asBool(gEnableParkour, enableParkour);
     parkourIndoorMode = std::clamp(asInt(gIndoorMode, parkourIndoorMode), 0, 2);
     maxClimbHeight = std::clamp(asFloat(gMaxClimbHeight, maxClimbHeight), 60.0f, 250.0f);
+    parkourMaxPlayerDistance = std::clamp(
+        asFloat(gParkourMaxPlayerDistance, parkourMaxPlayerDistance), 0.0f, 8000.0f);
 
     enableTeleportFallback = asBool(gTeleportFallback, enableTeleportFallback);
     snapDistance = std::clamp(asFloat(gSnapDistance, snapDistance), 40.0f, 300.0f);

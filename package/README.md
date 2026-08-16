@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.9
+# NPC Pathing NG v2.4.10
 
 Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with optional SkyParkour vault/climb and follower parkour replay.
 
@@ -15,7 +15,7 @@ Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with optional SkyParkou
 - **EVG is not required.** NPC EVG marker use does **not** currently work (engine furniture/package limit). Default off; experimental FOMOD option only.
 - Not a full AI or pathfinding rewrite
 - Default max climb is **130** units (not full cliffs unless you raise it)
-- Package **2.4.8** ships the **2.4.4** native DLL unchanged (embedded DLL version remains `2.4.4`)
+- Parkour is capped to **1600** units from the player by default (SkyParkour climb SFX are 2D). Set `fParkourMaxPlayerDistance=0` for the old unlimited range.
 
 ## Requirements
 

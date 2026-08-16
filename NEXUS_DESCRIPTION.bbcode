@@ -1,5 +1,5 @@
 [size=5][b]Modern NPC Pathing / NPC Pathing NG[/b][/size]
-[size=3]Version [b]2.4.6[/b] · Source: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing]GitHub[/url][/size]
+[size=3]Version [b]2.4.10[/b] · Source: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing]GitHub[/url][/size]
 
 [b]Runtime navmesh failsafe[/b] for humanoid NPCs on Skyrim SE/AE, with [b]optional[/b] SkyParkour vault/climb and follower parkour replay. Stuck NPCs that are actually trying to walk can step around geometry, handle simple doors, vault or climb when SkyParkour is present, and only then use a short validated last-resort teleport.
 
@@ -20,7 +20,7 @@
 [*]Not a full AI or pathfinding overhaul
 [*]Default max climb is [b]130[/b] units (steps / vaults / low ledges). Raise toward 250 in MCM if you want higher climbs
 [*]Indoor parkour is [b]off by default[/b]
-[*]Package [b]2.4.6[/b] did [b]not[/b] rebuild the native DLL — it ships the [b]2.4.4[/b] DLL byte-identical (SKSE version string inside the DLL remains 2.4.4). 2.4.6 is the package/ESP/installer fix for the double-MCM bug
+[*]SkyParkour climb sounds are 2D. NPCs farther than [b]1600[/b] units will not parkour (MCM: Parkour Max Distance)
 [/list]
 
 [size=4][b]Requirements[/b][/size]
@@ -48,11 +48,11 @@
 Use a mod manager. Prefer the [b]FOMOD[/b] archive so the installer can pick SkyParkour vs failsafe-only profiles.
 
 [size=4][b]Updating[/b][/size]
-Replace the previous version. FormIDs are unchanged; a clean save is not required for normal updates.
+Replace the previous version. FormIDs are unchanged except one new MCM global in 2.4.10. A clean save is not required. Existing saves keep their other MCM values; the new parkour distance cap starts at 1600.
 
 [b]If you installed yanked 2.4.5:[/b]
 [list=1]
-[*]Install 2.4.6
+[*]Install 2.4.8 or later
 [*]Remove leftover [font=Courier New]Data/Scripts/NPNG_MCMBridge.pex[/font] if present
 [*]An empty second MCM entry may remain on saves that already loaded 2.4.5 until cleaned or a new game
 [/list]
@@ -61,16 +61,15 @@ Replace the previous version. FormIDs are unchanged; a clean save is not require
 [list]
 [*]MCM: [b]NPC Pathing NG[/b]
 [*]INI fallback: [font=Courier New]Data/SKSE/Plugins/NPCPathingNG.ini[/font]
-[*]Defaults: followers on, combat NPCs on, indoor parkour off, climb 130, EVG off
+[*]Defaults: followers on, combat NPCs on, indoor parkour off, climb 130, parkour max distance 1600, EVG off
 [/list]
 
 [size=4][b]Changelog (recent)[/b][/size]
-[b]2.4.6[/b] — Fixed double MCM from 2.4.5; restored 2.4.4 ESP (MCM_ConfigBase); removed NPNG_MCMBridge; DLL unchanged from 2.4.4.
+[b]2.4.10[/b] — Fixed phantom SkyParkour climb sounds (2D SFX from off-screen / distant NPCs). Parkour now requires the NPC to be within 1600 units of you (MCM: Parkour Max Distance; 0 = unlimited).
+[b]2.4.9[/b] — City performance: crowd-jam early-out, EVG cell skip, fruitless-scan latch, cached follower faction.
+[b]2.4.8[/b] — First genuine native rebuild since 2.4.4; no more vaults onto barrels/crates; INI/FOMOD preset seeds the MCM.
+[b]2.4.6[/b] — Fixed double MCM from 2.4.5.
 [b]2.4.5[/b] — [s]Yanked[/s] — do not use.
-[b]2.4.4[/b] — EVG off by default / not required; FOMOD auto-detection.
-[b]2.4.3[/b] — Doorway sidestep fix; EVG NPC failures fail loudly.
-[b]2.4.2[/b] — Post-vault tilt fix; follower replay tuning.
-[b]2.4.1[/b] — Parkour disable safety, toggle isolation, teleport clearance, packaging.
 
 Full history: [url=https://github.com/ShugokiFable/Modern-NPC-Pathing/blob/main/CHANGELOG.md]CHANGELOG.md[/url]
 

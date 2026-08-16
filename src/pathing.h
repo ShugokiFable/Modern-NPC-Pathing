@@ -91,6 +91,9 @@ private:
     void Unstick(RE::Actor* a_actor, ActorEntry& a_entry, bool a_teammate);
     bool TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, const RE::NiPoint3& a_fwd);
     bool TryParkour(RE::Actor* a_actor, const RE::NiPoint3* a_fwdOverride = nullptr);
+    /// SkyParkour SFX are 2D (SOMStereo). Refuse parkour when the actor is
+    /// farther than Settings::parkourMaxPlayerDistance. 0 = no limit.
+    bool WithinParkourRange(RE::Actor* a_actor) const;
     bool TryTeleportBypass(RE::Actor* a_actor);
     void UpdateParkourJobs(float a_delta);
     void CancelParkourJobs(bool a_sendInterrupt);

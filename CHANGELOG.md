@@ -1,3 +1,19 @@
+## 2.4.10 (2026-08-16)
+
+### Fixed
+
+- **Phantom SkyParkour climb sounds with nobody in sight.** SkyParkour's
+  climb/vault/step HKX files fire `SoundPlay.SPPF_*` descriptors whose output
+  model is vanilla `SOMStereo` — 2D, no attenuation. This mod was sending the
+  `SkyParkour` graph event to any stuck high-process humanoid, so a hunter two
+  cells away or an NPC behind a wall played a full-volume climb at the
+  listener. That is not animals climbing (they were already filtered); it is
+  player-authored 2D SFX on distant NPCs. Parkour now refuses unless the actor
+  is within `fParkourMaxPlayerDistance` of the player (default **1600**, about
+  a 3D footstep's hearing range). Set it to **0** in MCM/INI for the old
+  unlimited behaviour. Followers still replay your moves when they are near
+  you. Teleport fallback is unchanged.
+
 ## 2.4.9 (2026-08-13)
 
 Performance release. Everything here is a cost reduction - no behaviour was

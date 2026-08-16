@@ -669,11 +669,31 @@ bool PathingManager::TryEvgTraversal(RE::Actor* a_actor, ActorEntry& a_entry, co
     return true;
 }
 
+bool PathingManager::WithinParkourRange(RE::Actor* a_actor) const
+{
+    const float maxDist = Settings::GetSingleton()->parkourMaxPlayerDistance;
+    if (maxDist <= 0.0f) {
+        return true;  // 0 = unlimited (pre-2.4.10)
+    }
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        return false;
+    }
+    const RE::NiPoint3 delta = a_actor->GetPosition() - player->GetPosition();
+    return delta.SqrLength() <= maxDist * maxDist;
+}
+
 bool PathingManager::TryParkour(RE::Actor* a_actor, const RE::NiPoint3* a_fwdOverride)
 {
     auto* settings = Settings::GetSingleton();
 
     if (!NpcParkour::HasBehaviorPatch(a_actor)) {
+        return false;
+    }
+
+    // Do this before the ledge sweep. SkyParkour's climb SFX are 2D, so a
+    // successful Trigger on a distant/off-screen NPC is heard at the player.
+    if (!WithinParkourRange(a_actor)) {
         return false;
     }
 

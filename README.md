@@ -1,4 +1,4 @@
-# NPC Pathing NG v2.4.9
+# NPC Pathing NG v2.4.10
 
 Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyParkour vault/climb and follower parkour replay. Stuck NPCs can step around geometry, open simple doors, vault or climb when SkyParkour is installed, and only then fall back to a short validated sidestep teleport.
 
@@ -24,6 +24,16 @@ Runtime navmesh failsafe for Skyrim SE/AE humanoid NPCs, with **optional** SkyPa
 - **2.4.8 was the first genuine native rebuild since 2.4.4.** Versions 2.4.5, 2.4.6 and 2.4.7 all shipped the
   identical 2.4.4 DLL (SHA256 `9e5616e0...`), so any behaviour difference reported between those three
   releases was not native code. The 2.4.8 DLL embeds version `2.4.8`.
+
+## What changed in 2.4.10
+
+Phantom SkyParkour climb sounds. SkyParkour's climb SFX are 2D (`SOMStereo`) —
+they play at your ears with no distance fade. 2.4.9 (and earlier) fired parkour
+on any stuck humanoid in high process, so you heard a climb next to you with
+nobody visible, including while camping "alone" with a hunter or traveler still
+in the loaded grid. Parkour now requires the NPC to be within **1600** units of
+you (MCM/INI `fParkourMaxPlayerDistance`; **0** restores the old unlimited
+range). Animals were already excluded; they were never the source.
 
 ## What changed in 2.4.9
 
@@ -71,7 +81,8 @@ When you vault or climb with SkyParkour, the mod can record the spot. A follower
 NPCs in combat are processed by default so guards/foes can climb after you on short ledges. One MCM toggle turns that off if your load order misbehaves.
 
 **Climbing stays grounded by default**  
-Max climb **130** units by default. Indoors parkour off by default.
+Max climb **130** units by default. Indoors parkour off by default. SkyParkour
+animations only fire within **1600** units of the player (their climb SFX are 2D).
 
 **Teleport is last resort**  
 Only after parkour/other escapes fail against static geometry, with corridor and destination checks. Can be disabled entirely.
@@ -108,17 +119,23 @@ Auto-detects SkyParkour / EVG presence and pre-selects a matching INI profile. E
 
 - MCM: **NPC Pathing NG**
 - INI: `Data/SKSE/Plugins/NPCPathingNG.ini`
-- Defaults: followers included, combat included, indoor parkour off, climb height **130**, EVG off
+- Defaults: followers included, combat included, indoor parkour off, climb height **130**, parkour max distance **1600**, EVG off
 
 ## Recent versions
 
-### 2.4.8 (2026-07-23) - current package
+### 2.4.10 (2026-08-16) - current
 
-- Fixes **double MCM** introduced by yanked **2.4.5** (`NPNG_MCMBridge`).
-- Restores **2.4.4 ESP** (`MCM_ConfigBase` only). Does **not** ship the bridge scripts.
-- **DLL unchanged** from 2.4.4 (no native rebuild).
+- Phantom SkyParkour climb sounds: SkyParkour SFX are 2D (`SOMStereo`). Parkour now requires the NPC to be within **1600** units of the player (`fParkourMaxPlayerDistance`; 0 = unlimited).
 
-If you already loaded 2.4.5: install 2.4.8, remove leftover `Data/Scripts/NPNG_MCMBridge.pex` if present. An empty orphan menu may remain on that save until cleaned or a new game is started.
+### 2.4.9
+
+- City performance: crowd-jam early-out, EVG cell skip, fruitless-scan latch, cached follower faction.
+
+### 2.4.8
+
+- First genuine native rebuild since 2.4.4. No more vaults onto barrels/crates. INI/FOMOD preset actually seeds the MCM.
+
+If you already loaded 2.4.5: install 2.4.8 or later, remove leftover `Data/Scripts/NPNG_MCMBridge.pex` if present. An empty orphan menu may remain on that save until cleaned or a new game is started.
 
 ### 2.4.5 - yanked
 
