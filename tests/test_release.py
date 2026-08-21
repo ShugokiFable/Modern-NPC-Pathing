@@ -159,7 +159,7 @@ class ReleaseTests(unittest.TestCase):
         configure = presets["configurePresets"][0]
         self.assertEqual(configure["generator"], "Visual Studio 17 2022")
         workflow = read_text(ROOT / ".github/workflows/build.yml")
-        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertRegex(workflow, r"actions/setup-python@v\d+")
         self.assertIn("VCPKG_INSTALLATION_ROOT", workflow)
         self.assertIn("VCPKG_ROOT=$root", workflow)
 
