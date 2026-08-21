@@ -138,7 +138,7 @@ jobs:
 
       # Version is read from src/version.h so this never needs editing per release.
       - name: Upload Nexus-ready release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NPC-Pathing-NG-${{ env.MOD_VERSION }}-Nexus
           path: |
